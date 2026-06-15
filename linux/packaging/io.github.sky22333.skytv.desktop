@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=sky-tv
+Comment=Modern cross-platform video player
+Exec=skytv
+Icon=io.github.sky22333.skytv
+Terminal=false
+Categories=AudioVideo;Player;

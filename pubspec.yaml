@@ -1,0 +1,59 @@
+name: skytv
+description: A modern cross-platform video player.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cached_network_image: ^3.4.1
+  crypto: ^3.0.7
+  cupertino_icons: ^1.0.8
+  flex_color_scheme: ^8.4.0
+  flutter_riverpod: ^3.3.2
+  go_router: ^17.3.0
+  http: ^1.6.0
+  media_kit: ^1.2.6
+  media_kit_libs_video: ^1.0.7
+  media_kit_video: ^2.0.1
+  path: ^1.9.1
+  path_provider: ^2.1.5
+  screen_brightness: ^2.1.9
+  shared_preferences: ^2.5.5
+  sqlite3: ^3.3.3
+  volume_controller: ^3.6.0
+  url_launcher: ^6.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_launcher_icons: ^0.14.4
+  flutter_lints: ^6.0.0
+  test: ^1.31.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/brand/logo.png
+
+flutter_launcher_icons:
+  image_path: assets/brand/logo.png
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  min_sdk_android: 23
+  windows:
+    generate: true
+    image_path: assets/brand/logo.png
+    icon_size: 48
+  macos:
+    generate: true
+    image_path: assets/brand/logo.png
+
+dependency_overrides:
+  screen_brightness_android: 2.1.3
