@@ -2,6 +2,8 @@
 
 sky-tv 是一个现代化跨平台视频播放器空壳应用，支持导入用户自己的影视源和 IPTV 直播源，用于搜索、分类、播放、收藏和继续观看。
 
+[界面预览图](https://github.com/sky22333/sky-tv/blob/main/docs/img/README.md)
+
 ### 声明
 
 sky-tv 只是个空壳播放器：
@@ -54,3 +56,6 @@ IPTV 也可以直接导入公开 M3U、M3U8 或 TXT 订阅地址。
 flutter pub get
 flutter run
 ```
+
+## Star 趋势
+[![Star 趋势](https://starchart.cc/sky22333/sky-tv.svg?variant=adaptive)](https://starchart.cc/sky22333/sky-tv)
