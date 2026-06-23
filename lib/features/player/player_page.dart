@@ -703,11 +703,13 @@ class _EpisodePickerState extends State<_EpisodePicker> {
     }
 
     return SafeArea(
+      left: false,
+      right: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 4, 0),
+            padding: const EdgeInsets.fromLTRB(16, 4, 12, 0),
             child: Row(
               children: [
                 const Text(
@@ -898,27 +900,64 @@ class _EpisodeGrid extends StatelessWidget {
       builder: (context, constraints) {
         const spacing = 10.0;
         const minTileWidth = 108.0;
-        final columns = (constraints.maxWidth / minTileWidth).floor().clamp(
-          3,
-          6,
-        );
-        final tileWidth =
-            (constraints.maxWidth - spacing * (columns - 1)) / columns;
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
+        const tileHeight = 38.0;
+        final width = constraints.maxWidth;
+        final columns = (width / minTileWidth).floor().clamp(3, 6);
+        final tileWidth = (width - spacing * (columns - 1)) / columns;
+        final episodes = line.episodes;
+        if (episodes.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        final rowCount = (episodes.length + columns - 1) ~/ columns;
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (var i = 0; i < line.episodes.length; i++)
-              _EpisodeTile(
-                width: tileWidth,
-                title: line.episodes[i].title,
-                selected: lineIndex == selectedLineIndex && i == episodeIndex,
-                overlay: overlay,
-                onSelected: () => onSelected(lineIndex, i),
+            for (var row = 0; row < rowCount; row++) ...[
+              if (row > 0) const SizedBox(height: spacing),
+              Row(
+                children: [
+                  for (var col = 0; col < columns; col++) ...[
+                    if (col > 0) SizedBox(width: spacing),
+                    SizedBox(
+                      width: tileWidth,
+                      height: tileHeight,
+                      child: _episodeTileAt(
+                        row: row,
+                        col: col,
+                        columns: columns,
+                        tileWidth: tileWidth,
+                        episodes: episodes,
+                      ),
+                    ),
+                  ],
+                ],
               ),
+            ],
           ],
         );
       },
+    );
+  }
+
+  Widget _episodeTileAt({
+    required int row,
+    required int col,
+    required int columns,
+    required double tileWidth,
+    required List<Episode> episodes,
+  }) {
+    final index = row * columns + col;
+    if (index >= episodes.length) {
+      return const SizedBox.shrink();
+    }
+    return _EpisodeTile(
+      width: tileWidth,
+      title: episodes[index].title,
+      selected: lineIndex == selectedLineIndex && index == episodeIndex,
+      overlay: overlay,
+      onSelected: () => onSelected(lineIndex, index),
     );
   }
 }
