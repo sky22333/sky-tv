@@ -32,7 +32,15 @@ sky-tv 只是个空壳播放器：
 ```json
 [
   {
-    "name": "示例影视源",
+    "name": "示例影视源1",
+    "api_url": "https://example.com/api.php/provide/vod"
+  },
+  {
+    "name": "示例影视源2",
+    "api_url": "https://example.com/api.php/provide/vod"
+  },
+  {
+    "name": "示例影视源3",
     "api_url": "https://example.com/api.php/provide/vod"
   }
 ]
@@ -44,8 +52,16 @@ IPTV JSON 示例：
 {
   "iptv": [
     {
-      "name": "示例直播源",
+      "name": "示例直播源1",
       "url": "https://example.com/live.m3u"
+    },
+    {
+      "name": "示例直播源2",
+      "url": "https://example.com/live.m3u8"
+    },
+    {
+      "name": "示例直播源3",
+      "url": "https://example.com/live.txt"
     }
   ]
 }
