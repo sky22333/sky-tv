@@ -129,6 +129,7 @@ lib/
       detail_page.dart        详情、收藏、选集入口
     player/
       player_page.dart        点播页：内联/弹层选集、续看、下一集
+      player_scaffold.dart    竖屏/宽屏播放页壳、固定播放器布局
       player_surface.dart     media_kit 控制条主题、全屏、手势
       live_player_page.dart   直播播放、切台
     live/
@@ -146,9 +147,9 @@ lib/
       app_dialogs.dart        确认弹窗、统一文本输入弹窗
       app_search_field.dart   搜索框
       app_logo.dart           品牌标题组件
-      poster_card.dart        海报卡片与网格 delegate
-      poster_row.dart         横向海报行
-      poster_fallback.dart    海报占位
+      poster_card.dart        PosterImage / PosterCard / ContinueWatchCard
+      poster_row.dart         横向海报行（推荐、续看、收藏）
+      poster_fallback.dart    海报占位（统一图标）
       state_views.dart        Loading/Empty/Error/SectionHeader 等
 
 test/
@@ -205,10 +206,13 @@ AGENTS.md                     指向 ./docs/docs.md
 ### 播放器
 
 - 核心使用 `media_kit` + `media_kit_video`；控制条主题与全屏逻辑在 `player_surface.dart`。
+- 竖屏点播页：`player_scaffold.dart` 固定顶部播放器 + 下方滚动内容；黑色状态栏（`playerPortraitSystemUi`）。
+- 宽屏断点 `playerWideBreakpoint = 1000`：AppBar + 左右分栏；侧栏内联选集。
 - 播放器内部手势优先使用官方 controls API（音量/亮度/seek/双击/长按加速）。
 - 不自定义复杂手势层；不恢复曾造成严重问题的全屏锁定逻辑。
+- 全屏返回/退出须在 fullscreen 控件自身 `BuildContext` 上调用 `exitFullscreen`；弹层关闭须在弹层内 `Navigator.pop`。
 - 点播下一集、直播下一频道由业务层（`player_page.dart` / `live_player_page.dart`）控制；控制条通过 `onNext`、`selectorAction` 暴露回调。
-- 全屏选集：移动端 BottomSheet，宽屏右侧暗色侧栏；与非全屏内联 `_EpisodeList` 共用组件。
+- 选集单路径：页面内联 / BottomSheet / 全屏·宽屏侧栏共用 `_EpisodeList → _EpisodeGrid → _EpisodeTile`；`overlay` 区分深色侧栏与扁平 BottomSheet 样式。
 
 ### 自定义 UA
 
@@ -232,7 +236,9 @@ AGENTS.md                     指向 ./docs/docs.md
 - 文本输入统一走 `showAppTextInputDialog`（`app_dialogs.dart`）。
 - 搜索、导入、加载、空状态和错误状态有清晰反馈（`state_views.dart`）。
 - 不使用无意义装饰动画或复杂视觉噪声。
-- 海报统一 `PosterCard` / `posterGridDelegate`，带 `memCacheWidth/Height` 控制解码尺寸。
+- 海报统一走 `PosterImage`（`cached_network_image` + `PosterFallback`）；列表卡片用 `PosterCard`（底部渐变叠标题与 meta）。
+- 首页「为你推荐 / 继续观看 / 我的收藏」均为 `PosterRow` / `ContinueWatchRow` 横向滚动（宽 118，2:3）；分类页用 `densePosterGridDelegate`。
+- 解码尺寸由 `posterMemCacheFor(展示宽度)` 按 DPR 计算，勿在页面层重复写 `CachedNetworkImage`。
 
 ## 性能规范
 
@@ -242,7 +248,7 @@ AGENTS.md                     指向 ./docs/docs.md
 - 分类切换、搜索过滤等本地操作不应重新触发整页 loading。
 - 大量 IPTV 频道解析不得阻塞主线程。
 - 搜索和详情缓存必须有容量边界。
-- 图片使用 `cached_network_image` 并提供 `PosterFallback`。
+- 图片加载统一 `PosterImage`；占位见 `PosterFallback`。
 - 并发请求要有限流，避免耗电和源站压力过大。
 
 ## 修改流程

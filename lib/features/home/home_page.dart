@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../app/routes.dart';
-import '../../core/models/media_models.dart';
 import '../../data/repositories/app_providers.dart';
-import '../../ui/widgets/poster_card.dart';
-import '../../ui/widgets/poster_fallback.dart';
 import '../../ui/widgets/poster_row.dart';
 import '../../ui/widgets/app_logo.dart';
 import '../../ui/widgets/state_views.dart';
@@ -58,16 +54,21 @@ class HomePage extends ConsumerWidget {
                     compact: true,
                   ),
                 )
-              else
-                ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemBuilder: (context, index) =>
-                      _RecordTile(record: home.records[index]),
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemCount: home.records.length > 6 ? 6 : home.records.length,
+              else ...[
+                ContinueWatchRow(
+                  records: home.records,
+                  onTap: (record) => context.push(
+                    SkyRoutes.player(
+                      record.sourceId,
+                      record.mediaId,
+                      lineIndex: record.lineIndex,
+                      episodeIndex: record.episodeIndex,
+                      resume: true,
+                    ),
+                  ),
                 ),
+                const SizedBox(height: 4),
+              ],
               const SectionHeader(title: '我的收藏'),
               if (home.favorites.isEmpty)
                 const SizedBox(
@@ -79,8 +80,14 @@ class HomePage extends ConsumerWidget {
                     compact: true,
                   ),
                 )
-              else
-                _PosterGrid(items: home.favorites),
+              else ...[
+                PosterRow(
+                  items: home.favorites,
+                  onTap: (item) =>
+                      context.push(SkyRoutes.detail(item.sourceId, item.id)),
+                ),
+                const SizedBox(height: 4),
+              ],
               const SizedBox(height: 24),
             ],
           ),
@@ -174,112 +181,6 @@ class _HeroSearch extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _RecordTile extends StatelessWidget {
-  const _RecordTile({required this.record});
-
-  final WatchRecord record;
-
-  @override
-  Widget build(BuildContext context) {
-    final progress = record.durationMs <= 0
-        ? 0.0
-        : (record.positionMs / record.durationMs).clamp(0.0, 1.0);
-    return Material(
-      color: Theme.of(context).colorScheme.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
-        onTap: () => context.push(
-          SkyRoutes.player(
-            record.sourceId,
-            record.mediaId,
-            lineIndex: record.lineIndex,
-            episodeIndex: record.episodeIndex,
-            resume: true,
-          ),
-        ),
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: SizedBox(
-                  width: 56,
-                  height: 84,
-                  child: record.poster == null
-                      ? const PosterFallback()
-                      : CachedNetworkImage(
-                          imageUrl: record.poster!,
-                          fit: BoxFit.cover,
-                          placeholder: (_, _) => const PosterFallback(),
-                          errorWidget: (_, _, _) => const PosterFallback(),
-                        ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      record.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${record.sourceName} · 第 ${record.episodeIndex + 1} 集',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    LinearProgressIndicator(value: progress),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Icon(
-                Icons.play_circle_fill_rounded,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PosterGrid extends StatelessWidget {
-  const _PosterGrid({required this.items});
-
-  final List<MediaItem> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: posterGridDelegate,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        return PosterCard(
-          item: item,
-          onTap: () => context.push(SkyRoutes.detail(item.sourceId, item.id)),
-        );
-      },
-      itemCount: items.length,
     );
   }
 }

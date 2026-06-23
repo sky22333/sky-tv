@@ -4,14 +4,13 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../app/routes.dart';
 import '../../core/models/media_models.dart';
 import '../../data/repositories/app_providers.dart';
 import '../../data/repositories/media_repository.dart';
 import '../../ui/widgets/app_search_field.dart';
-import '../../ui/widgets/poster_fallback.dart';
+import '../../ui/widgets/poster_card.dart';
 import '../../ui/widgets/state_views.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
@@ -382,15 +381,10 @@ class _SearchResultTile extends StatelessWidget {
         child: SizedBox(
           width: 44,
           height: 66,
-          child: item.poster == null
-              ? const PosterFallback()
-              : CachedNetworkImage(
-                  imageUrl: item.poster!,
-                  fit: BoxFit.cover,
-                  memCacheWidth: 120,
-                  placeholder: (_, _) => const PosterFallback(),
-                  errorWidget: (_, _, _) => const PosterFallback(),
-                ),
+          child: PosterImage(
+            url: item.poster,
+            memCacheWidth: posterMemCacheFor(44),
+          ),
         ),
       ),
       title: Text(
@@ -400,11 +394,7 @@ class _SearchResultTile extends StatelessWidget {
         style: const TextStyle(fontWeight: FontWeight.w700),
       ),
       subtitle: Text(
-        [
-          item.year,
-          item.category,
-          item.sourceName,
-        ].whereType<String>().join(' · '),
+        mediaMetaLine(item, mode: PosterMetaMode.withSource) ?? item.sourceName,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),

@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../app/routes.dart';
 import '../../core/models/media_models.dart';
 import '../../data/repositories/app_providers.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/theme/app_system_ui.dart';
+import '../../ui/widgets/poster_card.dart';
 import '../../ui/widgets/state_views.dart';
 
 class DetailPage extends ConsumerStatefulWidget {
@@ -111,21 +111,20 @@ class _DetailPageState extends ConsumerState<DetailPage> {
                                 children: [
                                   AspectRatio(
                                     aspectRatio: 2 / 3,
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(14),
-                                      child: detail.poster == null
-                                          ? Container(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .surfaceContainerHighest,
-                                              child: const Icon(
-                                                Icons.movie_outlined,
-                                              ),
-                                            )
-                                          : CachedNetworkImage(
-                                              imageUrl: detail.poster!,
-                                              fit: BoxFit.cover,
+                                    child: LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        return ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                          child: PosterImage(
+                                            url: detail.poster,
+                                            memCacheWidth: posterMemCacheFor(
+                                              constraints.maxWidth,
                                             ),
+                                          ),
+                                        );
+                                      },
                                     ),
                                   ),
                                   const SizedBox(width: 18),
