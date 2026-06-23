@@ -12,6 +12,7 @@ import '../../ui/widgets/app_search_field.dart';
 import '../../ui/widgets/state_views.dart';
 import '../live/live_channel_tile.dart';
 import '../live/live_group_selector.dart';
+import 'player_scaffold.dart';
 import 'player_surface.dart';
 
 class LivePlayerPage extends ConsumerStatefulWidget {
@@ -36,6 +37,9 @@ class _LivePlayerPageState extends ConsumerState<LivePlayerPage> {
   String _keyword = '';
   String? _loadError;
   bool _loading = true;
+  bool _closing = false;
+  bool _allowPop = false;
+  bool _playerDisposed = false;
   int _openToken = 0;
   Timer? _searchTimer;
 
@@ -52,7 +56,10 @@ class _LivePlayerPageState extends ConsumerState<LivePlayerPage> {
   void dispose() {
     _searchTimer?.cancel();
     _subtitleNotifier.dispose();
-    unawaited(_player.dispose());
+    if (!_playerDisposed) {
+      unawaited(_player.dispose());
+      _playerDisposed = true;
+    }
     unawaited(AppSystemUi.restore());
     super.dispose();
   }
@@ -133,64 +140,85 @@ class _LivePlayerPageState extends ConsumerState<LivePlayerPage> {
     final library = _library;
     final channel = _channel;
     final title = channel?.name ?? '直播';
-    return SystemUiRestorer(
-      child: Scaffold(
-        appBar: AppBar(title: Text(title)),
-        body: SafeArea(
-          top: false,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final wide = constraints.maxWidth >= 1000;
-              final player = _LivePlayerBlock(
-                controller: _videoController,
-                title: title,
-                subtitle: _subtitleNotifier,
-                loading: _loading,
-                loadError: _loadError,
-                selectorAction: library == null
-                    ? null
-                    : PlayerSurfaceAction(
-                        icon: Icons.live_tv_rounded,
-                        tooltip: '频道',
-                        onPressed: _showChannels,
-                      ),
-                onNext: _nextChannel == null
-                    ? null
-                    : () => unawaited(_playChannel(_nextChannel!)),
-                maxPlayerHeight: wide ? constraints.maxHeight * 0.72 : null,
-              );
-              final browser = library == null
-                  ? const LoadingState(message: '正在读取直播频道...')
-                  : _LiveChannelBrowser(
-                      library: library,
-                      selectedId: channel?.id,
-                      group: _group,
-                      keyword: _keyword,
-                      onGroupChanged: (value) => setState(() => _group = value),
-                      onSearchChanged: _onSearchChanged,
-                      onSelected: (item) => unawaited(_playChannel(item)),
-                    );
-              if (wide) {
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: ListView(children: [player])),
-                    const VerticalDivider(width: 1),
-                    SizedBox(width: 400, child: browser),
-                  ],
+    return PopScope(
+      canPop: _allowPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          unawaited(_closePage());
+        }
+      },
+      child: PortraitPlayerScaffold(
+        wideAppBar: AppBar(title: Text(title)),
+        bodyBuilder: (context, constraints, wide) {
+          final player = PlayerVideoBlock(
+            controller: _videoController,
+            title: title,
+            subtitle: _subtitleNotifier,
+            loading: _loading,
+            loadError: _loadError,
+            onBack: wide ? null : () => unawaited(_closePage()),
+            selectorAction: library == null
+                ? null
+                : PlayerSurfaceAction(
+                    icon: Icons.live_tv_rounded,
+                    tooltip: '频道',
+                    onPressed: _showChannels,
+                  ),
+            onNext: _nextChannel == null
+                ? null
+                : () => unawaited(_playChannel(_nextChannel!)),
+            onEnterFullscreen: enterPlayerFullscreen,
+            onExitFullscreen: AppSystemUi.restore,
+            maxPlayerHeight: wide ? constraints.maxHeight * 0.72 : null,
+          );
+          final browser = library == null
+              ? const LoadingState(message: '正在读取直播频道...')
+              : _LiveChannelBrowser(
+                  library: library,
+                  selectedId: channel?.id,
+                  group: _group,
+                  keyword: _keyword,
+                  onGroupChanged: (value) => setState(() => _group = value),
+                  onSearchChanged: _onSearchChanged,
+                  onSelected: (item) => unawaited(_playChannel(item)),
                 );
-              }
-              return Column(
-                children: [
-                  player,
-                  Expanded(child: browser),
-                ],
-              );
-            },
-          ),
-        ),
+          if (wide) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: ListView(children: [player])),
+                const VerticalDivider(width: 1),
+                SizedBox(width: 400, child: browser),
+              ],
+            );
+          }
+          return PortraitPlayerLayout(player: player, content: browser);
+        },
       ),
     );
+  }
+
+  Future<void> _closePage() async {
+    if (_closing) {
+      return;
+    }
+    _closing = true;
+    _searchTimer?.cancel();
+    try {
+      await _player.pause();
+      await _player.stop();
+    } catch (_) {
+      // Native playback may already be tearing down after a source failure.
+    }
+    if (!_playerDisposed) {
+      await _player.dispose();
+      _playerDisposed = true;
+    }
+    await AppSystemUi.restore();
+    if (mounted) {
+      setState(() => _allowPop = true);
+      Navigator.pop(context);
+    }
   }
 
   IptvChannel? get _nextChannel {
@@ -254,69 +282,6 @@ class _LivePlayerPageState extends ConsumerState<LivePlayerPage> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _LivePlayerBlock extends StatelessWidget {
-  const _LivePlayerBlock({
-    required this.controller,
-    required this.title,
-    required this.subtitle,
-    required this.loading,
-    required this.loadError,
-    required this.selectorAction,
-    required this.onNext,
-    this.maxPlayerHeight,
-  });
-
-  final VideoController controller;
-  final String title;
-  final ValueNotifier<String> subtitle;
-  final bool loading;
-  final String? loadError;
-  final PlayerSurfaceAction? selectorAction;
-  final VoidCallback? onNext;
-  final double? maxPlayerHeight;
-
-  @override
-  Widget build(BuildContext context) {
-    final player = AspectRatio(
-      aspectRatio: 16 / 9,
-      child: PlayerSurface(
-        controller: controller,
-        title: title,
-        subtitle: subtitle,
-        selectorAction: selectorAction,
-        onNext: onNext,
-        onEnterFullscreen: enterPlayerFullscreen,
-        onExitFullscreen: AppSystemUi.restore,
-      ),
-    );
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (maxPlayerHeight == null)
-          player
-        else
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: maxPlayerHeight!),
-              child: player,
-            ),
-          ),
-        if (loading) const LinearProgressIndicator(minHeight: 2),
-        if (loadError != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            child: InlineState(
-              icon: Icons.error_outline_rounded,
-              title: '播放失败',
-              message: loadError!,
-            ),
-          ),
-      ],
     );
   }
 }
@@ -392,6 +357,7 @@ class _LiveChannelBrowser extends StatelessWidget {
       ],
     );
     return SafeArea(
+      top: dark,
       child: dark
           ? Theme(
               data: Theme.of(context).copyWith(

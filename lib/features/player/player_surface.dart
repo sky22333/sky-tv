@@ -8,6 +8,14 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:volume_controller/volume_controller.dart';
 
+const playerPortraitSystemUi = SystemUiOverlayStyle(
+  statusBarColor: Colors.black,
+  statusBarIconBrightness: Brightness.light,
+  statusBarBrightness: Brightness.dark,
+  systemNavigationBarColor: Colors.black,
+  systemStatusBarContrastEnforced: false,
+);
+
 Future<void> enterPlayerFullscreen() async {
   await Future.wait([
     SystemChrome.setEnabledSystemUIMode(
@@ -41,6 +49,7 @@ class PlayerSurface extends StatelessWidget {
     required this.subtitle,
     required this.onEnterFullscreen,
     required this.onExitFullscreen,
+    this.onBack,
     this.selectorAction,
     this.onNext,
   });
@@ -50,6 +59,7 @@ class PlayerSurface extends StatelessWidget {
   final ValueListenable<String> subtitle;
   final Future<void> Function() onEnterFullscreen;
   final Future<void> Function() onExitFullscreen;
+  final VoidCallback? onBack;
   final PlayerSurfaceAction? selectorAction;
   final VoidCallback? onNext;
 
@@ -58,8 +68,11 @@ class PlayerSurface extends StatelessWidget {
     final player = controller.player;
     final desktop = _desktopControls(context);
     final mobileTheme = _mobileControlsTheme(
+      context: context,
       title: title,
       subtitle: subtitle,
+      onBack: onBack,
+      onExitFullscreen: onExitFullscreen,
       selectorAction: selectorAction,
       onNext: onNext,
     );
@@ -222,17 +235,26 @@ class PlayerSurface extends StatelessWidget {
     MaterialVideoControlsThemeData fullscreen,
   })
   _mobileControlsTheme({
+    required BuildContext context,
     required String title,
     required ValueListenable<String> subtitle,
+    required VoidCallback? onBack,
+    required Future<void> Function() onExitFullscreen,
     required PlayerSurfaceAction? selectorAction,
     required VoidCallback? onNext,
   }) {
     final gestures = _PlayerGestureControls();
-    final topBar = <Widget>[
-      const _FullscreenBackButton(),
-      Expanded(
-        child: _PlayerControlTitle(title: title, subtitle: subtitle),
-      ),
+    final titleWidget = _PlayerControlTitle(title: title, subtitle: subtitle);
+    final topInset = MediaQuery.viewPaddingOf(context).top;
+    final pageTopBar = onBack == null
+        ? const <Widget>[]
+        : <Widget>[
+            _PlayerBackButton(onPressed: onBack),
+            Expanded(child: titleWidget),
+          ];
+    final fullscreenTopBar = <Widget>[
+      _FullscreenBackButton(onExitFullscreen: onExitFullscreen),
+      Expanded(child: titleWidget),
     ];
 
     return (
@@ -246,7 +268,10 @@ class PlayerSurface extends StatelessWidget {
         onBrightnessChanged: gestures.setBrightness,
         onBrightnessReset: gestures.resetBrightness,
         displaySeekBar: false,
-        topButtonBar: const [],
+        topButtonBar: pageTopBar,
+        topButtonBarMargin: onBack == null
+            ? EdgeInsets.zero
+            : const EdgeInsets.fromLTRB(4, 4, 12, 0),
         bottomButtonBar: [
           const _PlayerTimeLabel(position: true),
           const SizedBox(width: 10),
@@ -275,8 +300,8 @@ class PlayerSurface extends StatelessWidget {
         onBrightnessChanged: gestures.setBrightness,
         onBrightnessReset: gestures.resetBrightness,
         displaySeekBar: false,
-        topButtonBar: topBar,
-        topButtonBarMargin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+        topButtonBar: fullscreenTopBar,
+        topButtonBarMargin: EdgeInsets.fromLTRB(12, topInset + 10, 12, 0),
         bottomButtonBar: [
           const _PlayerTimeLabel(position: true),
           const SizedBox(width: 10),
@@ -402,15 +427,37 @@ class _PlayerTimeLabel extends StatelessWidget {
 }
 
 class _FullscreenBackButton extends StatelessWidget {
-  const _FullscreenBackButton();
+  const _FullscreenBackButton({required this.onExitFullscreen});
+
+  final Future<void> Function() onExitFullscreen;
+
+  @override
+  Widget build(BuildContext context) {
+    return _PlayerBackButton(
+      onPressed: () async {
+        await onExitFullscreen();
+        if (context.mounted) {
+          await exitFullscreen(context);
+        }
+      },
+      tooltip: '退出全屏',
+    );
+  }
+}
+
+class _PlayerBackButton extends StatelessWidget {
+  const _PlayerBackButton({required this.onPressed, this.tooltip = '返回'});
+
+  final VoidCallback onPressed;
+  final String tooltip;
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      onPressed: () => exitFullscreen(context),
+      onPressed: onPressed,
       icon: const Icon(Icons.arrow_back_rounded),
       color: Colors.white,
-      tooltip: '退出全屏',
+      tooltip: tooltip,
     );
   }
 }
@@ -433,8 +480,8 @@ class _PlayerControlTitle extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 2),
@@ -444,7 +491,7 @@ class _PlayerControlTitle extends StatelessWidget {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
+            style: const TextStyle(color: Colors.white60, fontSize: 11),
           ),
         ),
       ],
