@@ -76,5 +76,6 @@ flutter pub get
 flutter run
 ```
 
-## Star 趋势
-[![Star 趋势](https://starchart.cc/sky22333/sky-tv.svg?variant=adaptive)](https://starchart.cc/sky22333/sky-tv)
+## Star History
+
+[![Star History Chart](https://api.star-history.com/chart?repos=sky22333/sky-tv&type=date&legend=top-left)](https://www.star-history.com/?repos=sky22333%2Fsky-tv&type=date&legend=top-left)
