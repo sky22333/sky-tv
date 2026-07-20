@@ -671,12 +671,17 @@ class _NowPlayingPanel extends StatelessWidget {
             detail.title,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 6),
-          Text(meta, maxLines: 1, overflow: TextOverflow.ellipsis, style: muted),
+          Text(
+            meta,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: muted,
+          ),
           if (tags.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
@@ -783,8 +788,7 @@ List<Widget> _episodeSlivers({
     );
   }
 
-  
-void addLine(int currentLineIndex, {required bool first}) {
+  void addLine(int currentLineIndex, {required bool first}) {
     final line = detail.playLines[currentLineIndex];
     if (!overlay && onlyLineIndex == null) {
       slivers.add(
