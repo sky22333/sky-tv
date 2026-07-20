@@ -104,6 +104,7 @@ class _LivePageState extends ConsumerState<LivePage> {
                         groups: data.groups,
                         group: _group,
                         searchController: _searchController,
+                        channelCount: channels.length,
                         onGroupChanged: (value) =>
                             setState(() => _group = value),
                         onSearchChanged: _onSearchChanged,
@@ -120,15 +121,15 @@ class _LivePageState extends ConsumerState<LivePage> {
                       )
                     else
                       SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                        padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
                         sliver: wide
                             ? SliverGrid.builder(
                                 gridDelegate:
                                     const SliverGridDelegateWithMaxCrossAxisExtent(
-                                      maxCrossAxisExtent: 360,
-                                      mainAxisExtent: 76,
-                                      crossAxisSpacing: 10,
-                                      mainAxisSpacing: 10,
+                                      maxCrossAxisExtent: 400,
+                                      mainAxisExtent: 56,
+                                      crossAxisSpacing: 4,
+                                      mainAxisSpacing: 0,
                                     ),
                                 itemBuilder: (context, index) =>
                                     LiveChannelTile(
@@ -139,17 +140,18 @@ class _LivePageState extends ConsumerState<LivePage> {
                                     ),
                                 itemCount: channels.length,
                               )
-                            : SliverList.separated(
-                                itemBuilder: (context, index) =>
-                                    LiveChannelTile(
-                                      channel: channels[index],
-                                      onTap: () => context.push(
-                                        SkyRoutes.live(channels[index].id),
-                                      ),
+                            : SliverFixedExtentList(
+                                itemExtent: 56,
+                                delegate: SliverChildBuilderDelegate(
+                                  (context, index) => LiveChannelTile(
+                                    channel: channels[index],
+                                    onTap: () => context.push(
+                                      SkyRoutes.live(channels[index].id),
                                     ),
-                                separatorBuilder: (_, _) =>
-                                    const SizedBox(height: 8),
-                                itemCount: channels.length,
+                                  ),
+                                  childCount: channels.length,
+                                  addAutomaticKeepAlives: false,
+                                ),
                               ),
                       ),
                   ],
@@ -292,6 +294,7 @@ class _LiveToolbar extends StatelessWidget {
     required this.groups,
     required this.group,
     required this.searchController,
+    required this.channelCount,
     required this.onGroupChanged,
     required this.onSearchChanged,
   });
@@ -299,25 +302,35 @@ class _LiveToolbar extends StatelessWidget {
   final List<String> groups;
   final String? group;
   final TextEditingController searchController;
+  final int channelCount;
   final ValueChanged<String?> onGroupChanged;
   final ValueChanged<String> onSearchChanged;
 
   @override
   Widget build(BuildContext context) {
+    final secondary = Theme.of(context).colorScheme.onSurfaceVariant;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 6),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           AppSearchField(
             controller: searchController,
             hintText: '搜索频道',
             onChanged: onSearchChanged,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           LiveGroupSelector(
             groups: groups,
             group: group,
             onChanged: onGroupChanged,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 8, left: 2),
+            child: Text(
+              '$channelCount 个频道',
+              style: TextStyle(color: secondary, fontSize: 12),
+            ),
           ),
         ],
       ),

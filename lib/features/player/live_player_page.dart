@@ -346,8 +346,10 @@ class _LiveChannelBrowser extends StatelessWidget {
                   message: '换个分组或关键词再试。',
                   compact: true,
                 )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+                  itemExtent: 56,
+                  itemCount: channels.length,
                   itemBuilder: (context, index) {
                     final channel = channels[index];
                     return LiveChannelTile(
@@ -357,8 +359,6 @@ class _LiveChannelBrowser extends StatelessWidget {
                       onTap: () => onSelected(channel),
                     );
                   },
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemCount: channels.length,
                 ),
         ),
       ],

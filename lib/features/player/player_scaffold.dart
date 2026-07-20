@@ -144,11 +144,20 @@ class PlayerVideoBlock extends StatelessWidget {
       ),
     );
     Widget block = Stack(
-      alignment: Alignment.bottomCenter,
-      fit: StackFit.passthrough,
       children: [
         video,
-        if (loading) const LinearProgressIndicator(minHeight: 2),
+        if (loading)
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 2,
+            child: LinearProgressIndicator(
+              minHeight: 2,
+              backgroundColor: Colors.white24,
+              color: Colors.white,
+            ),
+          ),
       ],
     );
     if (maxPlayerHeight != null) {

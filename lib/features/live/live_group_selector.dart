@@ -24,11 +24,13 @@ class LiveGroupSelector extends StatelessWidget {
         initialValue: group,
         isExpanded: true,
         borderRadius: BorderRadius.circular(AppInputDecoration.radius),
-        style: color == null ? null : TextStyle(color: color),
+        style: color == null
+            ? const TextStyle(fontSize: 14)
+            : TextStyle(color: color, fontSize: 14),
         dropdownColor: dark ? Colors.black : null,
         decoration: AppInputDecoration.flat(
           context,
-          prefixIcon: const Icon(Icons.format_list_bulleted_rounded, size: 22),
+          prefixIcon: const Icon(Icons.format_list_bulleted_rounded, size: 20),
           dark: dark,
         ),
         items: [
@@ -44,19 +46,23 @@ class LiveGroupSelector extends StatelessWidget {
     }
 
     return SizedBox(
-      height: 40,
+      height: 34,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemBuilder: (context, index) {
           final value = index == 0 ? null : groups[index - 1];
           return ChoiceChip(
-            label: Text(value ?? '全部'),
+            label: Text(value ?? '全部', style: const TextStyle(fontSize: 13)),
             selected: value == group,
             showCheckmark: false,
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            labelPadding: const EdgeInsets.symmetric(horizontal: 4),
             onSelected: (_) => onChanged(value),
           );
         },
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
         itemCount: groups.length + 1,
       ),
     );

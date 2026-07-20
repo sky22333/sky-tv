@@ -22,21 +22,23 @@ class LiveChannelTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final foreground = dark ? Colors.white : scheme.onSurface;
     final secondary = dark ? Colors.white70 : scheme.onSurfaceVariant;
-    final background = dark
-        ? (selected ? Colors.white24 : Colors.white10)
-        : (selected ? scheme.primaryContainer : scheme.surfaceContainerHigh);
+    final selectedFill = dark
+        ? Colors.white.withValues(alpha: 0.12)
+        : scheme.primaryContainer.withValues(alpha: 0.55);
+
+    const radius = BorderRadius.all(Radius.circular(8));
     return Material(
-      color: background,
-      borderRadius: BorderRadius.circular(8),
+      color: selected ? selectedFill : Colors.transparent,
+      borderRadius: radius,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: radius,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
             children: [
               _ChannelLogo(url: channel.logo, dark: dark),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -47,25 +49,28 @@ class LiveChannelTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: foreground,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       channel.group ?? '未分组',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: secondary, fontSize: 12),
+                      style: TextStyle(color: secondary, fontSize: 11),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
               Icon(
                 selected
                     ? Icons.radio_button_checked_rounded
-                    : Icons.play_circle_fill_rounded,
-                color: dark ? Colors.white : scheme.primary,
+                    : Icons.play_arrow_rounded,
+                size: 20,
+                color: dark ? Colors.white70 : scheme.primary,
               ),
             ],
           ),
@@ -85,22 +90,25 @@ class _ChannelLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final fallback = ColoredBox(
-      color: dark ? Colors.white12 : scheme.surfaceContainerHighest,
+      color: dark ? Colors.white10 : scheme.surfaceContainerHighest,
       child: Icon(
         Icons.live_tv_rounded,
-        color: dark ? Colors.white70 : scheme.onSurfaceVariant,
+        size: 18,
+        color: dark ? Colors.white54 : scheme.onSurfaceVariant,
       ),
     );
     return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(6),
       child: SizedBox(
-        width: 48,
-        height: 48,
+        width: 36,
+        height: 36,
         child: url == null || url!.isEmpty
             ? fallback
             : CachedNetworkImage(
                 imageUrl: url!,
                 fit: BoxFit.contain,
+                memCacheWidth: 72,
+                memCacheHeight: 72,
                 placeholder: (_, _) => fallback,
                 errorWidget: (_, _, _) => fallback,
               ),
