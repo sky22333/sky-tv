@@ -8,11 +8,13 @@ class PosterRow extends StatelessWidget {
     super.key,
     required this.items,
     required this.onTap,
+    this.onLongPress,
     this.itemWidth = 118,
   });
 
   final List<MediaItem> items;
   final ValueChanged<MediaItem> onTap;
+  final ValueChanged<MediaItem>? onLongPress;
   final double itemWidth;
 
   @override
@@ -33,6 +35,9 @@ class PosterRow extends StatelessWidget {
               item: item,
               metaMode: PosterMetaMode.compact,
               onTap: () => onTap(item),
+              onLongPress: onLongPress == null
+                  ? null
+                  : () => onLongPress!(item),
             ),
           );
         },
@@ -48,11 +53,13 @@ class ContinueWatchRow extends StatelessWidget {
     super.key,
     required this.records,
     required this.onTap,
+    this.onLongPress,
     this.itemWidth = 118,
   });
 
   final List<WatchRecord> records;
   final ValueChanged<WatchRecord> onTap;
+  final ValueChanged<WatchRecord>? onLongPress;
   final double itemWidth;
 
   @override
@@ -72,6 +79,9 @@ class ContinueWatchRow extends StatelessWidget {
             child: ContinueWatchCard(
               record: record,
               onTap: () => onTap(record),
+              onLongPress: onLongPress == null
+                  ? null
+                  : () => onLongPress!(record),
             ),
           );
         },

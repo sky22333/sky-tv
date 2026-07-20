@@ -380,6 +380,13 @@ class AppDatabase {
     );
   }
 
+  void deleteWatchRecord(String sourceId, String mediaId) {
+    _db.execute(
+      'DELETE FROM watch_records WHERE source_id = ? AND media_id = ?',
+      [sourceId, mediaId],
+    );
+  }
+
   List<MediaItem> loadFavorites() {
     final rows = _db.select('SELECT * FROM favorites ORDER BY created_at DESC');
     return rows.map(_favorite).toList();

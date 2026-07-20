@@ -80,11 +80,13 @@ class PosterCard extends StatelessWidget {
     super.key,
     required this.item,
     required this.onTap,
+    this.onLongPress,
     this.metaMode = PosterMetaMode.compact,
   });
 
   final MediaItem item;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
   final PosterMetaMode metaMode;
 
   @override
@@ -103,6 +105,7 @@ class PosterCard extends StatelessWidget {
         );
         return InkWell(
           onTap: onTap,
+          onLongPress: onLongPress,
           borderRadius: BorderRadius.circular(12),
           child: AspectRatio(
             aspectRatio: 2 / 3,
@@ -137,10 +140,12 @@ class ContinueWatchCard extends StatelessWidget {
     super.key,
     required this.record,
     required this.onTap,
+    this.onLongPress,
   });
 
   final WatchRecord record;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -154,6 +159,7 @@ class ContinueWatchCard extends StatelessWidget {
             : (record.positionMs / record.durationMs).clamp(0.0, 1.0);
         return InkWell(
           onTap: onTap,
+          onLongPress: onLongPress,
           borderRadius: BorderRadius.circular(12),
           child: AspectRatio(
             aspectRatio: 2 / 3,

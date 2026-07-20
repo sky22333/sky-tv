@@ -66,6 +66,10 @@ class MediaRepository {
 
   void toggleFavorite(MediaItem item) => db.toggleFavorite(item);
 
+  void deleteWatchRecord(String sourceId, String mediaId) {
+    db.deleteWatchRecord(sourceId, mediaId);
+  }
+
   int enabledSourceCount(List<VideoSource> sources) {
     return sources.where((source) => !source.disabled).length;
   }

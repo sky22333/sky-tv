@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/routes.dart';
+import '../../core/models/media_models.dart';
 import '../../data/repositories/app_providers.dart';
-import '../../ui/widgets/poster_row.dart';
+import '../../ui/widgets/app_dialogs.dart';
 import '../../ui/widgets/app_logo.dart';
+import '../../ui/widgets/poster_row.dart';
 import '../../ui/widgets/state_views.dart';
 
 class HomePage extends ConsumerWidget {
@@ -66,6 +70,8 @@ class HomePage extends ConsumerWidget {
                       resume: true,
                     ),
                   ),
+                  onLongPress: (record) =>
+                      unawaited(_removeWatchRecord(context, ref, record)),
                 ),
                 const SizedBox(height: 4),
               ],
@@ -85,6 +91,8 @@ class HomePage extends ConsumerWidget {
                   items: home.favorites,
                   onTap: (item) =>
                       context.push(SkyRoutes.detail(item.sourceId, item.id)),
+                  onLongPress: (item) =>
+                      unawaited(_removeFavorite(context, ref, item)),
                 ),
                 const SizedBox(height: 4),
               ],
@@ -97,6 +105,45 @@ class HomePage extends ConsumerWidget {
       ),
     );
   }
+}
+
+Future<void> _removeWatchRecord(
+  BuildContext context,
+  WidgetRef ref,
+  WatchRecord record,
+) async {
+  final confirmed = await confirmActionDialog(
+    context,
+    title: '移除续看',
+    message: '从继续观看中移除「${record.title}」？',
+    confirmText: '移除',
+  );
+  if (!confirmed || !context.mounted) {
+    return;
+  }
+  final repo = await ref.read(mediaRepositoryProvider.future);
+  repo.deleteWatchRecord(record.sourceId, record.mediaId);
+  ref.invalidate(homeDataProvider);
+}
+
+Future<void> _removeFavorite(
+  BuildContext context,
+  WidgetRef ref,
+  MediaItem item,
+) async {
+  final confirmed = await confirmActionDialog(
+    context,
+    title: '取消收藏',
+    message: '取消收藏「${item.title}」？',
+    confirmText: '取消收藏',
+  );
+  if (!confirmed || !context.mounted) {
+    return;
+  }
+  final repo = await ref.read(mediaRepositoryProvider.future);
+  repo.toggleFavorite(item);
+  ref.invalidate(homeDataProvider);
+  ref.invalidate(homeRecommendProvider);
 }
 
 class _HomeRecommend extends ConsumerWidget {
