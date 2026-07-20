@@ -23,7 +23,7 @@ class HomePage extends ConsumerWidget {
         title: const AppBrandTitle(),
         actions: [
           IconButton(
-            onPressed: () => context.go('/search'),
+            onPressed: () => context.go(SkyRoutes.search()),
             icon: const Icon(Icons.search_rounded),
             tooltip: '搜索',
           ),
@@ -38,15 +38,17 @@ class HomePage extends ConsumerWidget {
           },
           child: ListView(
             children: [
-              const SizedBox(height: 6),
-              _HeroSearch(onTap: () => context.go('/search')),
+              if (home.recentSearches.isNotEmpty)
+                _RecentSearches(keywords: home.recentSearches),
               const _HomeRecommend(),
               SectionHeader(
                 title: '继续观看',
-                action: TextButton(
-                  onPressed: () => context.go('/search'),
-                  child: const Text('找片'),
-                ),
+                action: home.records.isEmpty
+                    ? TextButton(
+                        onPressed: () => context.go(SkyRoutes.search()),
+                        child: const Text('找片'),
+                      )
+                    : null,
               ),
               if (home.records.isEmpty)
                 const SizedBox(
@@ -146,6 +148,38 @@ Future<void> _removeFavorite(
   ref.invalidate(homeRecommendProvider);
 }
 
+class _RecentSearches extends StatelessWidget {
+  const _RecentSearches({required this.keywords});
+
+  final List<String> keywords;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionHeader(title: '最近搜索'),
+        SizedBox(
+          height: 44,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            itemCount: keywords.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final keyword = keywords[index];
+              return ActionChip(
+                label: Text(keyword),
+                onPressed: () => context.go(SkyRoutes.search(keyword)),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _HomeRecommend extends ConsumerWidget {
   const _HomeRecommend();
 
@@ -186,48 +220,6 @@ class _HomeRecommend extends ConsumerWidget {
       },
       loading: () => const SizedBox.shrink(),
       error: (_, _) => const SizedBox.shrink(),
-    );
-  }
-}
-
-class _HeroSearch extends StatelessWidget {
-  const _HeroSearch({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-      child: Material(
-        color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.search_rounded,
-                  size: 22,
-                  color: scheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '搜索影片',
-                  style: TextStyle(
-                    color: scheme.onSurfaceVariant,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

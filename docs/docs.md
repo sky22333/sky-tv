@@ -118,7 +118,7 @@ lib/
 
   features/
     home/
-      home_page.dart          搜索入口、为你推荐、续看、收藏
+      home_page.dart          AppBar 搜索、最近搜索、为你推荐、续看、收藏
     search/
       search_page.dart        多源并发搜索、分批加载
     sources/

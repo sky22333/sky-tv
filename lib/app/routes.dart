@@ -1,6 +1,14 @@
 class SkyRoutes {
   const SkyRoutes._();
 
+  static String search([String? q]) {
+    final keyword = q?.trim();
+    if (keyword == null || keyword.isEmpty) {
+      return '/search';
+    }
+    return Uri(path: '/search', queryParameters: {'q': keyword}).toString();
+  }
+
   static String detail(String sourceId, String mediaId) {
     return _path('detail', sourceId, mediaId);
   }

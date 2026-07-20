@@ -31,6 +31,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   int _searchToken = 0;
   int _searchedSourceCount = 0;
   int _enabledSourceCount = 0;
+  String? _routeQueryApplied;
 
   static bool get _desktopAutofocus {
     if (kIsWeb) {
@@ -47,11 +48,19 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final q = GoRouterState.of(context).uri.queryParameters['q'];
-    if (q != null && q.isNotEmpty && _controller.text.isEmpty) {
-      _controller.text = q;
-      unawaited(_search(q));
+    final q = GoRouterState.of(context).uri.queryParameters['q']?.trim();
+    if (q == null || q.isEmpty) {
+      _routeQueryApplied = null;
+      return;
     }
+    if (q == _routeQueryApplied) {
+      return;
+    }
+    _routeQueryApplied = q;
+    if (_controller.text != q) {
+      _controller.text = q;
+    }
+    unawaited(_search(q));
   }
 
   @override
@@ -172,6 +181,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               }
             });
           });
+      if (saveRecent) {
+        // search() 在 listen 后异步写入最近搜索，下一微任务再刷新首页 chips。
+        Future.microtask(() {
+          if (mounted) {
+            ref.invalidate(homeDataProvider);
+          }
+        });
+      }
     } catch (error) {
       if (!mounted || token != _searchToken) {
         return;
