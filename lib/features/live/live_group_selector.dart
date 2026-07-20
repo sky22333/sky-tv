@@ -18,19 +18,27 @@ class LiveGroupSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    // 播放器深色浮层用不依赖 ColorScheme 的对比色；普通页跟主题 onSurface。
+    final foreground = dark ? Colors.white : scheme.onSurface;
+    final muted = dark ? Colors.white70 : scheme.onSurfaceVariant;
+
     if (groups.length > 6) {
-      final color = dark ? Colors.white : null;
       return DropdownButtonFormField<String?>(
         initialValue: group,
         isExpanded: true,
         borderRadius: BorderRadius.circular(AppInputDecoration.radius),
-        style: color == null
-            ? const TextStyle(fontSize: 14)
-            : TextStyle(color: color, fontSize: 14),
-        dropdownColor: dark ? Colors.black : null,
+        style: TextStyle(color: foreground, fontSize: 14),
+        iconEnabledColor: muted,
+        iconDisabledColor: muted.withValues(alpha: 0.4),
+        dropdownColor: dark ? Colors.black : scheme.surfaceContainerHigh,
         decoration: AppInputDecoration.flat(
           context,
-          prefixIcon: const Icon(Icons.format_list_bulleted_rounded, size: 20),
+          prefixIcon: Icon(
+            Icons.format_list_bulleted_rounded,
+            size: 20,
+            color: muted,
+          ),
           dark: dark,
         ),
         items: [
