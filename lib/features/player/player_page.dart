@@ -329,16 +329,19 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
             episodeIndex: _episodeIndex,
             compact: !wide,
           );
-          final episodeSlivers = _episodeSlivers(
-            detail: detail,
-            lineIndex: _lineIndex,
-            episodeIndex: _episodeIndex,
-            overlay: false,
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
-            onSelected: (lineIndex, episodeIndex) =>
-                unawaited(_selectEpisode(lineIndex, episodeIndex)),
-          );
+          void onPickEpisode(int lineIndex, int episodeIndex) {
+            unawaited(_selectEpisode(lineIndex, episodeIndex));
+          }
+
           if (wide) {
+            final episodeSlivers = _episodeSlivers(
+              detail: detail,
+              lineIndex: _lineIndex,
+              episodeIndex: _episodeIndex,
+              overlay: false,
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
+              onSelected: onPickEpisode,
+            );
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -356,12 +359,40 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
               ],
             );
           }
+
+          final multiLine = detail.playLines.length > 1;
           return PortraitPlayerLayout(
             player: player,
             content: CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(child: nowPlaying),
-                ...episodeSlivers,
+                if (multiLine)
+                  SliverToBoxAdapter(
+                    child: _EpisodeLineTabs(
+                      lines: detail.playLines,
+                      lineIndex: _lineIndex,
+                      overlay: false,
+                      onChanged: (index) {
+                        final line = detail.playLines[index];
+                        if (line.episodes.isEmpty) {
+                          return;
+                        }
+                        onPickEpisode(
+                          index,
+                          _episodeIndex.clamp(0, line.episodes.length - 1),
+                        );
+                      },
+                    ),
+                  ),
+                ..._episodeSlivers(
+                  detail: detail,
+                  lineIndex: _lineIndex,
+                  episodeIndex: _episodeIndex,
+                  overlay: false,
+                  onlyLineIndex: _lineIndex,
+                  padding: EdgeInsets.fromLTRB(20, multiLine ? 8 : 10, 20, 28),
+                  onSelected: onPickEpisode,
+                ),
               ],
             ),
           );
@@ -619,44 +650,100 @@ class _NowPlayingPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final line = detail.playLines[lineIndex];
-    final episode = line.episodes[episodeIndex];
+    final episode =
+        line.episodes[episodeIndex.clamp(0, line.episodes.length - 1)];
     final meta = [detail.sourceName, line.name, episode.title].join(' · ');
+    final tags = <String>[
+      if ((detail.year ?? '').trim().isNotEmpty) detail.year!.trim(),
+      if ((detail.category ?? '').trim().isNotEmpty) detail.category!.trim(),
+    ];
+    final description = detail.description?.trim();
+    final muted = TextStyle(color: scheme.onSurfaceVariant, fontSize: 13);
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, compact ? 12 : 20, 20, compact ? 4 : 8),
-      child: compact
-          ? Text(
-              meta,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontSize: 13,
-              ),
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  detail.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  meta,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+      padding: EdgeInsets.fromLTRB(20, compact ? 12 : 20, 20, compact ? 8 : 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            detail.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
             ),
+          ),
+          const SizedBox(height: 6),
+          Text(meta, maxLines: 1, overflow: TextOverflow.ellipsis, style: muted),
+          if (tags.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              tags.join(' · '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: muted.copyWith(fontSize: 12),
+            ),
+          ],
+          if (description != null && description.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _ExpandableDescription(text: description),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ExpandableDescription extends StatefulWidget {
+  const _ExpandableDescription({required this.text});
+
+  final String text;
+
+  @override
+  State<_ExpandableDescription> createState() => _ExpandableDescriptionState();
+}
+
+class _ExpandableDescriptionState extends State<_ExpandableDescription> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final canCollapse = widget.text.length > 48;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.text,
+          maxLines: _expanded || !canCollapse ? null : 2,
+          overflow: _expanded || !canCollapse
+              ? TextOverflow.visible
+              : TextOverflow.ellipsis,
+          style: TextStyle(
+            color: scheme.onSurfaceVariant,
+            fontSize: 13,
+            height: 1.35,
+          ),
+        ),
+        if (canCollapse)
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                _expanded ? '收起' : '展开',
+                style: TextStyle(
+                  color: scheme.primary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -673,7 +760,7 @@ List<Widget> _episodeSlivers({
 }) {
   final resolvedPadding = padding.resolve(TextDirection.ltr);
   final slivers = <Widget>[];
-  if (!overlay && showSectionTitle && onlyLineIndex == null) {
+  if (!overlay && showSectionTitle) {
     slivers.add(
       SliverToBoxAdapter(
         child: Padding(
@@ -681,11 +768,11 @@ List<Widget> _episodeSlivers({
             resolvedPadding.left,
             resolvedPadding.top,
             resolvedPadding.right,
-            14,
+            10,
           ),
           child: Builder(
             builder: (context) => Text(
-              '线路与分集',
+              onlyLineIndex == null ? '线路与分集' : '分集',
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
@@ -696,7 +783,8 @@ List<Widget> _episodeSlivers({
     );
   }
 
-  void addLine(int currentLineIndex, {required bool first}) {
+  
+void addLine(int currentLineIndex, {required bool first}) {
     final line = detail.playLines[currentLineIndex];
     if (!overlay && onlyLineIndex == null) {
       slivers.add(
@@ -856,15 +944,18 @@ class _EpisodeLineTabs extends StatelessWidget {
     required this.lines,
     required this.lineIndex,
     required this.onChanged,
+    this.overlay = true,
   });
 
   final List<PlayLine> lines;
   final int lineIndex;
   final ValueChanged<int> onChanged;
+  final bool overlay;
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final scheme = Theme.of(context).colorScheme;
+    final primary = scheme.primary;
     return SizedBox(
       height: 44,
       child: ListView.separated(
@@ -874,6 +965,29 @@ class _EpisodeLineTabs extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final selected = index == lineIndex;
+          final Color background;
+          final Color textColor;
+          final BoxBorder? border;
+          if (overlay) {
+            background = selected
+                ? primary.withValues(alpha: 0.12)
+                : Colors.white.withValues(alpha: 0.04);
+            textColor = selected ? Colors.white : Colors.white70;
+            border = Border.all(
+              color: selected
+                  ? primary.withValues(alpha: 0.85)
+                  : Colors.white.withValues(alpha: 0.18),
+              width: selected ? 1.5 : 1,
+            );
+          } else {
+            background = selected
+                ? scheme.primaryContainer
+                : scheme.surfaceContainerHighest;
+            textColor = selected
+                ? scheme.onPrimaryContainer
+                : scheme.onSurfaceVariant;
+            border = null;
+          }
           return Material(
             color: Colors.transparent,
             child: InkWell(
@@ -881,16 +995,9 @@ class _EpisodeLineTabs extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               child: Ink(
                 decoration: BoxDecoration(
-                  color: selected
-                      ? primary.withValues(alpha: 0.12)
-                      : Colors.white.withValues(alpha: 0.04),
+                  color: background,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: selected
-                        ? primary.withValues(alpha: 0.85)
-                        : Colors.white.withValues(alpha: 0.18),
-                    width: selected ? 1.5 : 1,
-                  ),
+                  border: border,
                 ),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -899,7 +1006,7 @@ class _EpisodeLineTabs extends StatelessWidget {
                 child: Text(
                   lines[index].name,
                   style: TextStyle(
-                    color: selected ? Colors.white : Colors.white70,
+                    color: textColor,
                     fontSize: 13,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                   ),

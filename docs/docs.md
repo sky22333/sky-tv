@@ -207,8 +207,8 @@ AGENTS.md                     指向 ./docs/docs.md
 ### 播放器
 
 - 核心使用 `media_kit` + `media_kit_video`；控制条主题与全屏逻辑在 `player_surface.dart`。
-- 竖屏点播页：`player_scaffold.dart` 固定顶部播放器 + 下方滚动内容；黑色状态栏（`playerPortraitSystemUi`）。
-- 宽屏断点 `playerWideBreakpoint = 1000`：AppBar + 左右分栏；侧栏内联选集。
+- 竖屏点播页：`player_scaffold.dart` 固定顶部播放器 + 下方滚动内容；黑色状态栏（`playerPortraitSystemUi`）。下方用详情已有数据展示片名/元信息/可折叠简介，多线路时横向切换且只渲染当前线路分集网格（无额外请求）。
+- 宽屏断点 `playerWideBreakpoint = 1000`：AppBar + 左右分栏；侧栏内联全部线路分集。
 - 播放器内部手势优先使用官方 controls API（音量/亮度/seek/双击/长按加速）。
 - 不自定义复杂手势层；不恢复曾造成严重问题的全屏锁定逻辑。
 - 全屏返回/退出须在 fullscreen 控件自身 `BuildContext` 上调用 `exitFullscreen`；弹层关闭须在弹层内 `Navigator.pop`。
