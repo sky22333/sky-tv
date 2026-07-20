@@ -127,6 +127,7 @@ Future<void> _removeWatchRecord(
   final repo = await ref.read(mediaRepositoryProvider.future);
   repo.deleteWatchRecord(record.sourceId, record.mediaId);
   ref.invalidate(homeDataProvider);
+  ref.invalidate(homeFeedProvider);
 }
 
 Future<void> _removeFavorite(

@@ -479,34 +479,15 @@ class AppDatabase {
     return rows.map(_iptvSubscription).toList();
   }
 
-  List<IptvChannel> loadIptvChannels({String? group, String? keyword}) {
-    final where = <String>[];
-    final args = <Object?>[];
-    if (group != null && group.isNotEmpty) {
-      where.add('group_name = ?');
-      args.add(group);
-    }
-    if (keyword != null && keyword.trim().isNotEmpty) {
-      where.add('name LIKE ?');
-      args.add('%${keyword.trim()}%');
-    }
-    final sql = StringBuffer('SELECT * FROM iptv_channels');
-    if (where.isNotEmpty) {
-      sql.write(' WHERE ${where.join(' AND ')}');
-    }
-    sql.write(' ORDER BY group_name ASC, sort_order ASC, name ASC LIMIT 2000');
-    return _db.select(sql.toString(), args).map(_iptvChannel).toList();
-  }
-
-  IptvChannel? loadIptvChannel(String id) {
-    final rows = _db.select(
-      'SELECT * FROM iptv_channels WHERE id = ? LIMIT 1',
-      [id],
-    );
-    if (rows.isEmpty) {
-      return null;
-    }
-    return _iptvChannel(rows.first);
+  List<IptvChannel> loadIptvChannels() {
+    return _db
+        .select('''
+      SELECT * FROM iptv_channels
+      ORDER BY group_name ASC, sort_order ASC, name ASC
+      LIMIT 2000
+    ''')
+        .map(_iptvChannel)
+        .toList();
   }
 
   List<String> loadIptvGroups() {
@@ -601,7 +582,7 @@ class AppDatabase {
     _db.execute('BEGIN');
     try {
       _db.execute('DELETE FROM source_categories');
-      _db.execute('DELETE FROM iptv_channels');
+      // 不删 iptv_channels：频道是订阅库数据，不是可重建的「缓存」。
       _db.execute(
         "UPDATE source_subscriptions SET content_hash = '', last_checked_at = NULL",
       );

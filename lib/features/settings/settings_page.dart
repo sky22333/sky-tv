@@ -77,7 +77,7 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.cleaning_services_rounded),
             title: const Text('清理缓存'),
-            subtitle: const Text('清理推荐、分类与海报缓存'),
+            subtitle: const Text('清理分类与海报缓存'),
             onTap: () => _confirmClearCache(context, ref),
           ),
           const SectionHeader(title: '关于'),
@@ -141,7 +141,7 @@ class SettingsPage extends ConsumerWidget {
     final confirmed = await confirmActionDialog(
       context,
       title: '清理缓存',
-      message: '将清理推荐、分类、直播等缓存与海报图片，不会删除订阅、收藏和观看记录。',
+      message: '将清理分类缓存与海报图片，并重置订阅校验状态。不会删除订阅、频道、收藏和观看记录。',
       confirmText: '清理',
     );
     if (!confirmed || !context.mounted) {

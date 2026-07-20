@@ -109,7 +109,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     });
     _playingSubscription = player.stream.playing.listen((playing) {
       if (!playing && !_opening) {
-        _saveRecord();
+        _saveRecord(refreshHome: true);
       }
     });
     _positionSubscription = player.stream.position.listen((position) {
@@ -132,7 +132,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     _episodeTitleNotifier.dispose();
     final player = _player;
     if (!_playerDisposed && player != null) {
-      _saveRecord();
+      _saveRecord(refreshHome: true);
       unawaited(player.dispose());
       _playerDisposed = true;
     }
@@ -388,7 +388,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         (lineIndex == _lineIndex && episodeIndex == _episodeIndex)) {
       return;
     }
-    _saveRecord();
+    _saveRecord(refreshHome: true);
     setState(() {
       _lineIndex = lineIndex;
       _episodeIndex = episodeIndex;
@@ -429,7 +429,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       return;
     }
     _closing = true;
-    _saveRecord();
+    _saveRecord(refreshHome: true);
     await _completedSubscription?.cancel();
     final player = _player;
     if (player != null) {
@@ -535,12 +535,13 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         now.difference(savedAt) < const Duration(seconds: 15)) {
       return;
     }
+    // Progress ticks: write DB only (no Provider invalidate while playing).
     if (_saveRecord(now: now)) {
       _lastProgressSavedAt = now;
     }
   }
 
-  bool _saveRecord({DateTime? now}) {
+  bool _saveRecord({DateTime? now, bool refreshHome = false}) {
     if (_opening) {
       return false;
     }
@@ -573,8 +574,10 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         updatedAt: now ?? DateTime.now(),
       ),
     );
-    // 首页继续观看只依赖 homeDataProvider；推荐列表不读进度，无需连带刷新。
-    ref.invalidate(homeDataProvider);
+    if (refreshHome) {
+      ref.invalidate(homeDataProvider);
+      ref.invalidate(homeFeedProvider);
+    }
     return true;
   }
 

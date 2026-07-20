@@ -31,7 +31,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   int _searchToken = 0;
   int _searchedSourceCount = 0;
   int _enabledSourceCount = 0;
-  String? _routeQueryApplied;
+  String? _activeQuery;
 
   static bool get _desktopAutofocus {
     if (kIsWeb) {
@@ -50,13 +50,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     super.didChangeDependencies();
     final q = GoRouterState.of(context).uri.queryParameters['q']?.trim();
     if (q == null || q.isEmpty) {
-      _routeQueryApplied = null;
       return;
     }
-    if (q == _routeQueryApplied) {
+    // 以当前展示关键词为准，避免同 q 二次进入时界面仍停在手动搜索结果。
+    if (q == _activeQuery) {
       return;
     }
-    _routeQueryApplied = q;
     if (_controller.text != q) {
       _controller.text = q;
     }
@@ -73,11 +72,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   Future<void> _search(String keyword) async {
     final token = ++_searchToken;
     final value = keyword.trim();
+    await _subscription?.cancel();
+    _subscription = null;
     if (value.isEmpty) {
-      if (!mounted) {
+      if (!mounted || token != _searchToken) {
         return;
       }
       setState(() {
+        _activeQuery = null;
         _groups.clear();
         _searching = false;
         _hasMoreSources = false;
@@ -87,11 +89,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       });
       return;
     }
-    await _subscription?.cancel();
     if (!mounted || token != _searchToken) {
       return;
     }
     setState(() {
+      _activeQuery = value;
       _groups.clear();
       _searching = true;
       _hasMoreSources = false;
@@ -149,38 +151,57 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             limit: limit,
             saveRecent: saveRecent,
           )
-          .listen((event) {
-            if (!mounted || token != _searchToken) {
-              return;
-            }
-            setState(() {
-              switch (event) {
-                case SourceSearchStarted(:final source):
-                  _groups[source.sourceId] = _SearchGroup(
-                    sourceName: source.name,
-                  );
-                case SourceSearchCompleted(:final source, :final items):
-                  _groups[source.sourceId] = _SearchGroup(
-                    sourceName: source.name,
-                    items: items,
-                    completed: true,
-                  );
-                case SourceSearchFailed(:final source, :final message):
-                  _groups[source.sourceId] = _SearchGroup(
-                    sourceName: source.name,
-                    error: message,
-                    completed: true,
-                  );
-                case SearchCompleted():
-                  _searchedSourceCount = (offset + limit).clamp(
-                    0,
-                    enabledCount,
-                  );
-                  _hasMoreSources = _searchedSourceCount < enabledCount;
-                  _searching = false;
+          .listen(
+            (event) {
+              if (!mounted || token != _searchToken) {
+                return;
               }
-            });
-          });
+              setState(() {
+                switch (event) {
+                  case SourceSearchStarted(:final source):
+                    _groups[source.sourceId] = _SearchGroup(
+                      sourceName: source.name,
+                    );
+                  case SourceSearchCompleted(:final source, :final items):
+                    _groups[source.sourceId] = _SearchGroup(
+                      sourceName: source.name,
+                      items: items,
+                      completed: true,
+                    );
+                  case SourceSearchFailed(:final source, :final message):
+                    _groups[source.sourceId] = _SearchGroup(
+                      sourceName: source.name,
+                      error: message,
+                      completed: true,
+                    );
+                  case SearchCompleted():
+                    _searchedSourceCount = (offset + limit).clamp(
+                      0,
+                      enabledCount,
+                    );
+                    _hasMoreSources = _searchedSourceCount < enabledCount;
+                    _searching = false;
+                }
+              });
+            },
+            onError: (Object error) {
+              if (!mounted || token != _searchToken) {
+                return;
+              }
+              setState(() {
+                _searching = false;
+                _error = error.toString();
+              });
+            },
+            onDone: () {
+              if (!mounted || token != _searchToken) {
+                return;
+              }
+              if (_searching) {
+                setState(() => _searching = false);
+              }
+            },
+          );
       if (saveRecent) {
         // search() 在 listen 后异步写入最近搜索，下一微任务再刷新首页 chips。
         Future.microtask(() {

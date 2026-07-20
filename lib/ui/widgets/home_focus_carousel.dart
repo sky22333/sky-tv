@@ -25,13 +25,16 @@ class _HomeFocusCarouselState extends State<HomeFocusCarousel>
   static const _interval = Duration(seconds: 5);
   static const _fraction = 0.38;
   static const _aspect = 2 / 3;
-  static const _loops = 1000;
+
+  /// 有限环 + 近边缘 jump 回中段，避免 n×1000 虚页。
+  static const _loops = 40;
 
   late final PageController _controller;
   Timer? _timer;
   var _page = 0;
   var _dragging = false;
   var _active = true;
+  var _jumping = false;
 
   int get _n => widget.items.length;
   bool get _loop => _n >= 2;
@@ -84,7 +87,7 @@ class _HomeFocusCarouselState extends State<HomeFocusCarousel>
       return;
     }
     _timer = Timer.periodic(_interval, (_) {
-      if (!mounted || !_controller.hasClients || !_loop) {
+      if (!mounted || !_controller.hasClients || !_loop || _jumping) {
         return;
       }
       _controller.animateToPage(
@@ -93,6 +96,32 @@ class _HomeFocusCarouselState extends State<HomeFocusCarousel>
         curve: Curves.easeOutCubic,
       );
     });
+  }
+
+  void _onPageChanged(int index) {
+    if (_jumping) {
+      return;
+    }
+    setState(() => _page = index);
+    if (!_loop || !_controller.hasClients) {
+      return;
+    }
+    final margin = _n * 2;
+    if (index < margin || index >= _count - margin) {
+      final target = _start() + _real(index);
+      _jumping = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_controller.hasClients) {
+          _jumping = false;
+          return;
+        }
+        _controller.jumpToPage(target);
+        setState(() {
+          _page = target;
+          _jumping = false;
+        });
+      });
+    }
   }
 
   @override
@@ -121,8 +150,7 @@ class _HomeFocusCarouselState extends State<HomeFocusCarousel>
             child: PageView.builder(
               controller: _controller,
               itemCount: _count,
-              allowImplicitScrolling: true,
-              onPageChanged: (i) => setState(() => _page = i),
+              onPageChanged: _onPageChanged,
               itemBuilder: (context, i) {
                 final item = items[_real(i)];
                 return Padding(

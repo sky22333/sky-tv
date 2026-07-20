@@ -23,15 +23,13 @@ class IptvRepository {
   final bool _ownsClient;
   final Map<String, String> _headers;
 
-  IptvLibrary library({String? group, String? keyword}) {
+  IptvLibrary library() {
     return IptvLibrary(
       subscriptions: _db.loadIptvSubscriptions(),
-      channels: _db.loadIptvChannels(group: group, keyword: keyword),
+      channels: _db.loadIptvChannels(),
       groups: _db.loadIptvGroups(),
     );
   }
-
-  IptvChannel? channel(String id) => _db.loadIptvChannel(id);
 
   Future<IptvImportResult> importSubscriptionUrl(
     String name,
@@ -130,11 +128,19 @@ class IptvRepository {
     return IptvImportResult(channels: imported, errors: errors);
   }
 
-  Future<void> refreshDueSubscriptions() async {
+  /// 刷新到期订阅；返回成功处理的条数（单项失败不中断后续）。
+  Future<int> refreshDueSubscriptions() async {
     final subscriptions = _db.loadDueIptvSubscriptions();
+    var ok = 0;
     for (final subscription in subscriptions) {
-      await importSubscriptionUrl(subscription.name, subscription.url);
+      try {
+        await importSubscriptionUrl(subscription.name, subscription.url);
+        ok++;
+      } catch (_) {
+        continue;
+      }
     }
+    return ok;
   }
 
   void deleteSubscription(String id) {

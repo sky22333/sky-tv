@@ -230,7 +230,11 @@ class _LivePlayerPageState extends ConsumerState<LivePlayerPage> {
     if (channel == null || library == null) {
       return null;
     }
-    final channels = _filterChannels(library.channels, _group, _keyword);
+    final channels = filterIptvChannels(
+      library.channels,
+      group: _group,
+      keyword: _keyword,
+    );
     final index = channels.indexWhere((item) => item.id == channel.id);
     if (index < 0 || index + 1 >= channels.length) {
       return null;
@@ -315,7 +319,11 @@ class _LiveChannelBrowser extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final channels = _filterChannels(library.channels, group, keyword);
+    final channels = filterIptvChannels(
+      library.channels,
+      group: group,
+      keyword: keyword,
+    );
     final child = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -389,19 +397,4 @@ IptvChannel? _findChannel(List<IptvChannel> channels, String id) {
     }
   }
   return null;
-}
-
-List<IptvChannel> _filterChannels(
-  List<IptvChannel> channels,
-  String? group,
-  String keyword,
-) {
-  if (group == null && keyword.isEmpty) {
-    return channels;
-  }
-  return channels.where((channel) {
-    final matchesGroup = group == null || channel.group == group;
-    final matchesKeyword = keyword.isEmpty || channel.name.contains(keyword);
-    return matchesGroup && matchesKeyword;
-  }).toList();
 }

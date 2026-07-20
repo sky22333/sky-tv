@@ -192,15 +192,16 @@ AGENTS.md                     指向 ./docs/docs.md
 ### 订阅自动刷新
 
 - 影视订阅：进入 `SourcesPage` 后 `addPostFrameCallback` 触发 `SourceRepository.refreshDueSubscriptions()`。
-- IPTV 订阅：进入 `LivePage` 后同样方式触发 `IptvRepository.refreshDueSubscriptions()`。
+- IPTV 订阅：进入 `LivePage` 后同样方式触发 `IptvRepository.refreshDueSubscriptions()`；下拉刷新走同一路径。
 - 规则：距上次检查超过 6 小时才拉取；影视每次最多 5 条、IPTV 每次最多 3 条；内容 hash 不变则只更新检查时间，不重导源。
+- 单项失败不中断后续；页面在 `finally` 中 `invalidate` 对应 Provider。
 - 不在 `app_providers.dart` Provider 创建时触发刷新。
 
 ### IPTV
 
 - 支持 M3U、M3U8、TXT 和 JSON 订阅。
 - 大量频道解析不得阻塞主线程（`iptv_parser.dart` 保持异步或 isolate）。
-- 直播列表与直播播放页复用 `IptvChannel` 与 `live_channel_tile.dart`。
+- 直播列表与直播播放页复用 `IptvChannel`、`live_channel_tile.dart` 与 `filterIptvChannels`。
 - 切台只切换播放器媒体，不反复创建页面路由。
 
 ### 播放器
@@ -224,7 +225,7 @@ AGENTS.md                     指向 ./docs/docs.md
 
 - 主题：系统 / 浅色 / 深色。
 - 「刷新首页数据」：`invalidate(homeDataProvider)` + `invalidate(homeFeedProvider)`。
-- 「清理缓存」：清理 Repository 内存缓存与数据库中的分类缓存等（见 `settings_page.dart` 实现）。
+- 「清理缓存」：清理分类缓存、海报图片缓存，并重置订阅校验状态；**不**删除 IPTV 频道、订阅、收藏与观看记录（见 `AppDatabase.clearCache`）。
 
 ## UI 规范
 
@@ -237,7 +238,8 @@ AGENTS.md                     指向 ./docs/docs.md
 - 搜索、导入、加载、空状态和错误状态有清晰反馈（`state_views.dart`）。
 - 不使用无意义装饰动画或复杂视觉噪声。
 - 海报统一走 `PosterImage`（`cached_network_image` + `PosterFallback`）；列表卡片用 `PosterCard`（底部渐变叠标题与 meta）。
-- 首页竖版焦点用 `HomeFocusCarousel`（复用 `PosterCard`、viewport 约 0.38、环形无限滚动、无 3D、后台/拖拽暂停自动切换）；「为你推荐 / 继续观看 / 我的收藏」为 `PosterRow` / `ContinueWatchRow` 横向滚动（宽 118，2:3）；分类页用 `densePosterGridDelegate`。
+- 首页竖版焦点用 `HomeFocusCarousel`（复用 `PosterCard`、viewport 约 0.38、有限环+近边缘 jump、无 3D、后台/拖拽暂停自动切换）；「为你推荐 / 继续观看 / 我的收藏」为 `PosterRow` / `ContinueWatchRow` 横向滚动（宽 118，2:3）；分类页用 `densePosterGridDelegate`。
+- 直播频道过滤统一走 `filterIptvChannels`（`iptv_models.dart`）。
 - 解码尺寸由 `posterMemCacheFor(展示宽度)` 按 DPR 计算（默认 max 720，只约束宽度保比例）；勿在页面层重复写 `CachedNetworkImage`。
 
 ## 性能规范

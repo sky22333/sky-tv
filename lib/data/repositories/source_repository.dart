@@ -97,11 +97,19 @@ class SourceRepository {
     return result;
   }
 
-  Future<void> refreshDueSubscriptions() async {
+  /// 刷新到期订阅；返回成功处理的条数（单项失败不中断后续）。
+  Future<int> refreshDueSubscriptions() async {
     final subscriptions = _db.loadDueSubscriptions();
+    var ok = 0;
     for (final subscription in subscriptions) {
-      await importSubscriptionUrl(subscription.name, subscription.url);
+      try {
+        await importSubscriptionUrl(subscription.name, subscription.url);
+        ok++;
+      } catch (_) {
+        continue;
+      }
     }
+    return ok;
   }
 
   Future<LatencyTestResult> testLatencies(List<VideoSource> sources) async {

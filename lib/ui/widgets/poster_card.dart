@@ -11,7 +11,7 @@ const densePosterGridDelegate = SliverGridDelegateWithMaxCrossAxisExtent(
   mainAxisSpacing: 10,
 );
 
-enum PosterMetaMode { compact, withSource, hidden }
+enum PosterMetaMode { compact, withSource }
 
 String? mediaMetaLine(
   MediaItem item, {
@@ -19,7 +19,6 @@ String? mediaMetaLine(
   bool omitCategory = false,
 }) {
   return switch (mode) {
-    PosterMetaMode.hidden => null,
     PosterMetaMode.compact => _joinMeta([
       item.year,
       if (!omitCategory) item.category,

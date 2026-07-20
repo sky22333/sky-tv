@@ -103,6 +103,9 @@ class MediaRepository {
     controller = StreamController<SearchEvent>(
       onCancel: () {
         closed = true;
+        if (!controller.isClosed) {
+          unawaited(controller.close());
+        }
       },
     );
 

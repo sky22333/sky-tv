@@ -37,8 +37,16 @@ class _LivePageState extends ConsumerState<LivePage> {
   }
 
   Future<void> _refreshSubscriptions() async {
-    final repo = await ref.read(iptvRepositoryProvider.future);
-    await repo.refreshDueSubscriptions().catchError((_) {});
+    try {
+      final repo = await ref.read(iptvRepositoryProvider.future);
+      await repo.refreshDueSubscriptions();
+    } catch (_) {
+      // 单项失败已在仓库内吞掉；此处仅兜底。
+    } finally {
+      if (mounted) {
+        ref.invalidate(iptvLibraryProvider);
+      }
+    }
   }
 
   @override
@@ -96,7 +104,7 @@ class _LivePageState extends ConsumerState<LivePage> {
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 1000;
               return RefreshIndicator(
-                onRefresh: () async => ref.invalidate(iptvLibraryProvider),
+                onRefresh: _refreshSubscriptions,
                 child: CustomScrollView(
                   slivers: [
                     SliverToBoxAdapter(
@@ -167,16 +175,7 @@ class _LivePageState extends ConsumerState<LivePage> {
   }
 
   List<IptvChannel> _filterChannels(List<IptvChannel> channels) {
-    final group = _group;
-    final keyword = _keyword;
-    if (group == null && keyword.isEmpty) {
-      return channels;
-    }
-    return channels.where((channel) {
-      final matchesGroup = group == null || channel.group == group;
-      final matchesKeyword = keyword.isEmpty || channel.name.contains(keyword);
-      return matchesGroup && matchesKeyword;
-    }).toList();
+    return filterIptvChannels(channels, group: _group, keyword: _keyword);
   }
 
   Future<void> _showSubscriptions(BuildContext context) async {

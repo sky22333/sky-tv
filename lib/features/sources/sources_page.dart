@@ -31,8 +31,15 @@ class _SourcesPageState extends ConsumerState<SourcesPage> {
   }
 
   Future<void> _refreshSubscriptions() async {
-    final repo = await ref.read(sourceRepositoryProvider.future);
-    await repo.refreshDueSubscriptions().catchError((_) {});
+    try {
+      final repo = await ref.read(sourceRepositoryProvider.future);
+      await repo.refreshDueSubscriptions();
+    } catch (_) {
+    } finally {
+      if (mounted) {
+        ref.invalidate(sourcesProvider);
+      }
+    }
   }
 
   @override

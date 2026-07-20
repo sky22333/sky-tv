@@ -42,6 +42,21 @@ class IptvChannel {
   final int sortOrder;
 }
 
+List<IptvChannel> filterIptvChannels(
+  List<IptvChannel> channels, {
+  String? group,
+  String keyword = '',
+}) {
+  if (group == null && keyword.isEmpty) {
+    return channels;
+  }
+  return channels.where((channel) {
+    final matchesGroup = group == null || channel.group == group;
+    final matchesKeyword = keyword.isEmpty || channel.name.contains(keyword);
+    return matchesGroup && matchesKeyword;
+  }).toList();
+}
+
 class IptvLibrary {
   const IptvLibrary({
     required this.subscriptions,
