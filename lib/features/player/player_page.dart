@@ -9,6 +9,7 @@ import '../../core/models/media_models.dart';
 import '../../data/repositories/app_providers.dart';
 import '../../data/repositories/media_repository.dart';
 import '../../ui/theme/app_system_ui.dart';
+import '../../ui/widgets/episode_grid.dart';
 import '../../ui/widgets/state_views.dart';
 import 'player_scaffold.dart';
 import 'player_surface.dart';
@@ -51,8 +52,8 @@ class PlayerPage extends ConsumerStatefulWidget {
 }
 
 class _PlayerPageState extends ConsumerState<PlayerPage> {
-  late final Player _player;
-  late final VideoController _videoController;
+  Player? _player;
+  VideoController? _videoController;
   MediaRepository? _mediaRepo;
   MediaDetail? _detail;
   Map<String, String> _requestHeaders = const {};
@@ -63,6 +64,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   bool _closing = false;
   bool _allowPop = false;
   bool _playerDisposed = false;
+  bool _playerReady = false;
   int? _resumePositionMs;
   Duration _lastKnownPosition = Duration.zero;
   Duration _lastKnownDuration = Duration.zero;
@@ -78,31 +80,46 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     super.initState();
     _lineIndex = widget.lineIndex;
     _episodeIndex = widget.episodeIndex;
-    _player = Player(
+    _episodeTitleNotifier = ValueNotifier('');
+    // 推迟一帧再建 Player/Video，避免首帧与 VideoOutputManager.create 叠在一起丢帧。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _closing) {
+        return;
+      }
+      _ensurePlayer();
+    });
+  }
+
+  void _ensurePlayer() {
+    if (_playerReady || _playerDisposed || _closing) {
+      return;
+    }
+    final player = Player(
       configuration: const PlayerConfiguration(
         title: 'sky-tv',
-        bufferSize: 64 * 1024 * 1024,
+        bufferSize: 16 * 1024 * 1024,
       ),
     );
-    _videoController = VideoController(_player);
-    _episodeTitleNotifier = ValueNotifier('');
-    _completedSubscription = _player.stream.completed.listen((completed) {
+    _player = player;
+    _videoController = VideoController(player);
+    _completedSubscription = player.stream.completed.listen((completed) {
       if (completed) {
         unawaited(_openNextEpisode());
       }
     });
-    _playingSubscription = _player.stream.playing.listen((playing) {
+    _playingSubscription = player.stream.playing.listen((playing) {
       if (!playing && !_opening) {
         _saveRecord();
       }
     });
-    _positionSubscription = _player.stream.position.listen((position) {
+    _positionSubscription = player.stream.position.listen((position) {
       _lastKnownPosition = position;
       _saveRecordThrottled();
     });
-    _durationSubscription = _player.stream.duration.listen((duration) {
+    _durationSubscription = player.stream.duration.listen((duration) {
       _lastKnownDuration = duration;
     });
+    setState(() => _playerReady = true);
     unawaited(_load());
   }
 
@@ -113,9 +130,10 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     _positionSubscription?.cancel();
     _durationSubscription?.cancel();
     _episodeTitleNotifier.dispose();
-    if (!_playerDisposed) {
+    final player = _player;
+    if (!_playerDisposed && player != null) {
       _saveRecord();
-      unawaited(_player.dispose());
+      unawaited(player.dispose());
       _playerDisposed = true;
     }
     unawaited(AppSystemUi.restore());
@@ -124,30 +142,23 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
 
   Future<void> _load() async {
     try {
-      final headersFuture = ref.read(requestHeadersProvider.future);
-      final mediaRepo = await ref.read(mediaRepositoryProvider.future);
+      final (mediaRepo, headers) = await (
+        ref.read(mediaRepositoryProvider.future),
+        ref.read(requestHeadersProvider.future),
+      ).wait;
       if (!mounted) {
         return;
       }
       _mediaRepo = mediaRepo;
-      if (widget.resume) {
-        final record = mediaRepo.watchRecord(widget.sourceId, widget.mediaId);
-        if (record != null &&
-            record.lineIndex == _lineIndex &&
-            record.episodeIndex == _episodeIndex &&
-            record.positionMs > 0) {
-          _resumePositionMs = record.positionMs;
-        }
-      }
-      final initialDetail = widget.initialDetail;
-      final detailFuture =
-          initialDetail != null &&
-              initialDetail.sourceId == widget.sourceId &&
-              initialDetail.id == widget.mediaId
-          ? Future<MediaDetail?>.value(initialDetail)
-          : _loadDetail(mediaRepo);
-      final detail = await detailFuture;
-      _requestHeaders = await headersFuture;
+      _requestHeaders = headers;
+      _captureResumePosition(mediaRepo);
+
+      final initial = widget.initialDetail;
+      final hasInitial =
+          initial != null &&
+          initial.sourceId == widget.sourceId &&
+          initial.id == widget.mediaId;
+      final detail = hasInitial ? initial : await _loadDetail(mediaRepo);
       if (!mounted) {
         return;
       }
@@ -170,6 +181,19 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     }
   }
 
+  void _captureResumePosition(MediaRepository mediaRepo) {
+    if (!widget.resume) {
+      return;
+    }
+    final record = mediaRepo.watchRecord(widget.sourceId, widget.mediaId);
+    if (record != null &&
+        record.lineIndex == _lineIndex &&
+        record.episodeIndex == _episodeIndex &&
+        record.positionMs > 0) {
+      _resumePositionMs = record.positionMs;
+    }
+  }
+
   Future<MediaDetail?> _loadDetail(MediaRepository mediaRepo) async {
     final sourceRepo = await ref.read(sourceRepositoryProvider.future);
     final source = sourceRepo.findById(widget.sourceId);
@@ -183,8 +207,9 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     if (_closing || _playerDisposed) {
       return;
     }
+    final player = _player;
     final episode = _currentEpisode;
-    if (episode == null) {
+    if (player == null || episode == null) {
       return;
     }
     setState(() {
@@ -195,7 +220,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
       final resumePositionMs = _resumePositionMs;
       _resumePositionMs = null;
       _resetProgressSnapshot();
-      await _player.open(
+      await player.open(
         Media(
           episode.url,
           httpHeaders: _requestHeaders.isEmpty ? null : _requestHeaders,
@@ -236,6 +261,15 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   @override
   Widget build(BuildContext context) {
     final detail = _detail;
+    final videoController = _videoController;
+    if (!_playerReady || videoController == null) {
+      return _wrapPopScope(
+        const Scaffold(
+          appBar: _PlayerAppBar(),
+          body: LoadingState(message: '正在准备播放器...'),
+        ),
+      );
+    }
     if (_loadError != null && detail == null) {
       return _wrapPopScope(
         Scaffold(
@@ -270,7 +304,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         wideAppBar: const _PlayerAppBar(),
         bodyBuilder: (context, constraints, wide) {
           final player = PlayerVideoBlock(
-            controller: _videoController,
+            controller: videoController,
             title: detail.title,
             subtitle: _episodeTitleNotifier,
             loading: _opening,
@@ -295,10 +329,12 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
             episodeIndex: _episodeIndex,
             compact: !wide,
           );
-          final episodes = _EpisodeSection(
+          final episodeSlivers = _episodeSlivers(
             detail: detail,
             lineIndex: _lineIndex,
             episodeIndex: _episodeIndex,
+            overlay: false,
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
             onSelected: (lineIndex, episodeIndex) =>
                 unawaited(_selectEpisode(lineIndex, episodeIndex)),
           );
@@ -315,19 +351,18 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                 const VerticalDivider(width: 1),
                 SizedBox(
                   width: 400,
-                  child: ListView(
-                    padding: EdgeInsets.zero,
-                    children: [episodes],
-                  ),
+                  child: CustomScrollView(slivers: episodeSlivers),
                 ),
               ],
             );
           }
           return PortraitPlayerLayout(
             player: player,
-            content: ListView(
-              padding: EdgeInsets.zero,
-              children: [nowPlaying, episodes],
+            content: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(child: nowPlaying),
+                ...episodeSlivers,
+              ],
             ),
           );
         },
@@ -396,15 +431,18 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     _closing = true;
     _saveRecord();
     await _completedSubscription?.cancel();
-    try {
-      await _player.pause();
-      await _player.stop();
-    } catch (_) {
-      // Native playback may already be tearing down after a source failure.
-    }
-    if (!_playerDisposed) {
-      await _player.dispose();
-      _playerDisposed = true;
+    final player = _player;
+    if (player != null) {
+      try {
+        await player.pause();
+        await player.stop();
+      } catch (_) {
+        // Native playback may already be tearing down after a source failure.
+      }
+      if (!_playerDisposed) {
+        await player.dispose();
+        _playerDisposed = true;
+      }
     }
     await AppSystemUi.restore();
     if (mounted) {
@@ -514,10 +552,10 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     }
     final position = _lastKnownPosition > Duration.zero
         ? _lastKnownPosition
-        : _player.state.position;
+        : (_player?.state.position ?? Duration.zero);
     final duration = _lastKnownDuration > Duration.zero
         ? _lastKnownDuration
-        : _player.state.duration;
+        : (_player?.state.duration ?? Duration.zero);
     if (position <= Duration.zero && duration <= Duration.zero) {
       return false;
     }
@@ -535,8 +573,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         updatedAt: now ?? DateTime.now(),
       ),
     );
+    // 首页继续观看只依赖 homeDataProvider；推荐列表不读进度，无需连带刷新。
     ref.invalidate(homeDataProvider);
-    ref.invalidate(homeRecommendProvider);
     return true;
   }
 
@@ -620,31 +658,100 @@ class _NowPlayingPanel extends StatelessWidget {
   }
 }
 
-class _EpisodeSection extends StatelessWidget {
-  const _EpisodeSection({
-    required this.detail,
-    required this.lineIndex,
-    required this.episodeIndex,
-    required this.onSelected,
-  });
-
-  final MediaDetail detail;
-  final int lineIndex;
-  final int episodeIndex;
-  final void Function(int lineIndex, int episodeIndex) onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
-      child: _EpisodeList(
-        detail: detail,
-        lineIndex: lineIndex,
-        episodeIndex: episodeIndex,
-        onSelected: onSelected,
+List<Widget> _episodeSlivers({
+  required MediaDetail detail,
+  required int lineIndex,
+  required int episodeIndex,
+  required bool overlay,
+  required void Function(int lineIndex, int episodeIndex) onSelected,
+  EdgeInsetsGeometry padding = EdgeInsets.zero,
+  int? onlyLineIndex,
+  bool showSectionTitle = true,
+}) {
+  final resolvedPadding = padding.resolve(TextDirection.ltr);
+  final slivers = <Widget>[];
+  if (!overlay && showSectionTitle && onlyLineIndex == null) {
+    slivers.add(
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            resolvedPadding.left,
+            resolvedPadding.top,
+            resolvedPadding.right,
+            14,
+          ),
+          child: Builder(
+            builder: (context) => Text(
+              '线路与分集',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
       ),
     );
   }
+
+  void addLine(int currentLineIndex, {required bool first}) {
+    final line = detail.playLines[currentLineIndex];
+    if (!overlay && onlyLineIndex == null) {
+      slivers.add(
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              resolvedPadding.left,
+              first && !showSectionTitle ? resolvedPadding.top : 0,
+              resolvedPadding.right,
+              10,
+            ),
+            child: Builder(
+              builder: (context) => Text(
+                line.name,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    slivers.add(
+      EpisodeGridSliver(
+        padding: EdgeInsets.fromLTRB(
+          resolvedPadding.left,
+          overlay || onlyLineIndex != null
+              ? (first ? resolvedPadding.top : 8)
+              : 0,
+          resolvedPadding.right,
+          currentLineIndex == detail.playLines.length - 1 ||
+                  onlyLineIndex != null
+              ? resolvedPadding.bottom
+              : 20,
+        ),
+        itemCount: line.episodes.length,
+        itemBuilder: (context, index) {
+          final episode = line.episodes[index];
+          return EpisodeChip(
+            title: episode.title,
+            selected: currentLineIndex == lineIndex && index == episodeIndex,
+            style: overlay
+                ? EpisodeChipStyle.overlay
+                : EpisodeChipStyle.surface,
+            onPressed: () => onSelected(currentLineIndex, index),
+          );
+        },
+      ),
+    );
+  }
+
+  if (onlyLineIndex != null) {
+    addLine(onlyLineIndex, first: true);
+  } else {
+    for (var i = 0; i < detail.playLines.length; i++) {
+      addLine(i, first: i == 0);
+    }
+  }
+  return slivers;
 }
 
 class _EpisodePicker extends StatefulWidget {
@@ -682,24 +789,23 @@ class _EpisodePickerState extends State<_EpisodePicker> {
 
   @override
   Widget build(BuildContext context) {
-    final list = _EpisodeList(
+    final multi = widget.detail.playLines.length > 1;
+    final onlyLine = widget.overlay && multi ? _activeLineIndex : null;
+    final slivers = _episodeSlivers(
       detail: widget.detail,
       lineIndex: widget.lineIndex,
       episodeIndex: widget.episodeIndex,
       overlay: widget.overlay,
-      onlyLineIndex: widget.overlay && widget.detail.playLines.length > 1
-          ? _activeLineIndex
-          : null,
+      onlyLineIndex: onlyLine,
+      showSectionTitle: !widget.overlay,
+      padding: widget.overlay
+          ? const EdgeInsets.fromLTRB(16, 8, 16, 20)
+          : const EdgeInsets.fromLTRB(20, 0, 20, 24),
       onSelected: _pickEpisode,
     );
 
     if (!widget.overlay) {
-      return SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-          children: [list],
-        ),
-      );
+      return SafeArea(child: CustomScrollView(slivers: slivers));
     }
 
     return SafeArea(
@@ -729,18 +835,13 @@ class _EpisodePickerState extends State<_EpisodePicker> {
               ],
             ),
           ),
-          if (widget.detail.playLines.length > 1)
+          if (multi)
             _EpisodeLineTabs(
               lines: widget.detail.playLines,
               lineIndex: _activeLineIndex,
               onChanged: (index) => setState(() => _activeLineIndex = index),
             ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-              children: [list],
-            ),
-          ),
+          Expanded(child: CustomScrollView(slivers: slivers)),
         ],
       ),
     );
@@ -804,236 +905,6 @@ class _EpisodeLineTabs extends StatelessWidget {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _EpisodeList extends StatelessWidget {
-  const _EpisodeList({
-    required this.detail,
-    required this.lineIndex,
-    required this.episodeIndex,
-    required this.onSelected,
-    this.overlay = false,
-    this.onlyLineIndex,
-  });
-
-  final MediaDetail detail;
-  final int lineIndex;
-  final int episodeIndex;
-  final void Function(int lineIndex, int episodeIndex) onSelected;
-  final bool overlay;
-  final int? onlyLineIndex;
-
-  @override
-  Widget build(BuildContext context) {
-    if (onlyLineIndex != null) {
-      return _EpisodeGrid(
-        lineIndex: onlyLineIndex!,
-        line: detail.playLines[onlyLineIndex!],
-        selectedLineIndex: lineIndex,
-        episodeIndex: episodeIndex,
-        overlay: overlay,
-        onSelected: onSelected,
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (!overlay)
-          Text(
-            '线路与分集',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-          ),
-        if (!overlay) const SizedBox(height: 14),
-        for (
-          var currentLineIndex = 0;
-          currentLineIndex < detail.playLines.length;
-          currentLineIndex++
-        ) ...[
-          if (!overlay) ...[
-            Text(
-              detail.playLines[currentLineIndex].name,
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: 10),
-          ],
-          _EpisodeGrid(
-            lineIndex: currentLineIndex,
-            line: detail.playLines[currentLineIndex],
-            selectedLineIndex: lineIndex,
-            episodeIndex: episodeIndex,
-            overlay: overlay,
-            onSelected: onSelected,
-          ),
-          if (!overlay) const SizedBox(height: 20),
-        ],
-      ],
-    );
-  }
-}
-
-class _EpisodeGrid extends StatelessWidget {
-  const _EpisodeGrid({
-    required this.lineIndex,
-    required this.line,
-    required this.selectedLineIndex,
-    required this.episodeIndex,
-    required this.overlay,
-    required this.onSelected,
-  });
-
-  final int lineIndex;
-  final PlayLine line;
-  final int selectedLineIndex;
-  final int episodeIndex;
-  final bool overlay;
-  final void Function(int lineIndex, int episodeIndex) onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const spacing = 10.0;
-        const minTileWidth = 108.0;
-        const tileHeight = 38.0;
-        final width = constraints.maxWidth;
-        final columns = (width / minTileWidth).floor().clamp(3, 6);
-        final tileWidth = (width - spacing * (columns - 1)) / columns;
-        final episodes = line.episodes;
-        if (episodes.isEmpty) {
-          return const SizedBox.shrink();
-        }
-        final rowCount = (episodes.length + columns - 1) ~/ columns;
-
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (var row = 0; row < rowCount; row++) ...[
-              if (row > 0) const SizedBox(height: spacing),
-              Row(
-                children: [
-                  for (var col = 0; col < columns; col++) ...[
-                    if (col > 0) SizedBox(width: spacing),
-                    SizedBox(
-                      width: tileWidth,
-                      height: tileHeight,
-                      child: _episodeTileAt(
-                        row: row,
-                        col: col,
-                        columns: columns,
-                        tileWidth: tileWidth,
-                        episodes: episodes,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ],
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _episodeTileAt({
-    required int row,
-    required int col,
-    required int columns,
-    required double tileWidth,
-    required List<Episode> episodes,
-  }) {
-    final index = row * columns + col;
-    if (index >= episodes.length) {
-      return const SizedBox.shrink();
-    }
-    return _EpisodeTile(
-      width: tileWidth,
-      title: episodes[index].title,
-      selected: lineIndex == selectedLineIndex && index == episodeIndex,
-      overlay: overlay,
-      onSelected: () => onSelected(lineIndex, index),
-    );
-  }
-}
-
-class _EpisodeTile extends StatelessWidget {
-  const _EpisodeTile({
-    required this.title,
-    required this.width,
-    required this.selected,
-    required this.overlay,
-    required this.onSelected,
-  });
-
-  final String title;
-  final double width;
-  final bool selected;
-  final bool overlay;
-  final VoidCallback onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final Color background;
-    final Color textColor;
-    final BoxBorder? border;
-
-    if (overlay) {
-      background = selected
-          ? scheme.primary.withValues(alpha: 0.12)
-          : Colors.white.withValues(alpha: 0.04);
-      textColor = selected ? Colors.white : Colors.white70;
-      border = Border.all(
-        color: selected
-            ? scheme.primary.withValues(alpha: 0.85)
-            : Colors.white.withValues(alpha: 0.18),
-        width: selected ? 1.5 : 1,
-      );
-    } else {
-      background = selected
-          ? scheme.primaryContainer
-          : scheme.surfaceContainerHighest;
-      textColor = selected
-          ? scheme.onPrimaryContainer
-          : scheme.onSurfaceVariant;
-      border = null;
-    }
-
-    return SizedBox(
-      width: width,
-      height: 38,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onSelected,
-          borderRadius: BorderRadius.circular(8),
-          child: Ink(
-            decoration: BoxDecoration(
-              color: background,
-              borderRadius: BorderRadius.circular(8),
-              border: border,
-            ),
-            child: Center(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  color: textColor,
-                ),
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }

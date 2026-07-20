@@ -10,6 +10,7 @@ import '../../core/models/media_models.dart';
 import '../../data/repositories/app_providers.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/theme/app_system_ui.dart';
+import '../../ui/widgets/episode_grid.dart';
 import '../../ui/widgets/poster_card.dart';
 import '../../ui/widgets/state_views.dart';
 
@@ -196,19 +197,7 @@ class _DetailPageState extends ConsumerState<DetailPage> {
                         ),
                       )
                     else
-                      SliverList.builder(
-                        itemCount: detail.playLines.length,
-                        itemBuilder: (context, lineIndex) {
-                          final line = detail.playLines[lineIndex];
-                          return _DetailContentWidth(
-                            child: _PlayLineBlock(
-                              detail: detail,
-                              line: line,
-                              lineIndex: lineIndex,
-                            ),
-                          );
-                        },
-                      ),
+                      ..._detailEpisodeSlivers(context, detail),
                   ],
                 );
               },
@@ -217,6 +206,53 @@ class _DetailPageState extends ConsumerState<DetailPage> {
         ),
       ),
     );
+  }
+
+  List<Widget> _detailEpisodeSlivers(BuildContext context, MediaDetail detail) {
+    final inset = _detailHorizontalInset(context);
+    final slivers = <Widget>[];
+    for (var lineIndex = 0; lineIndex < detail.playLines.length; lineIndex++) {
+      final line = detail.playLines[lineIndex];
+      slivers.add(
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(inset, 8, inset, 12),
+            child: Text(
+              line.name,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+        ),
+      );
+      slivers.add(
+        EpisodeGridSliver(
+          padding: EdgeInsets.fromLTRB(inset, 0, inset, 20),
+          itemCount: line.episodes.length,
+          itemBuilder: (context, index) {
+            final episode = line.episodes[index];
+            return EpisodeChip(
+              title: episode.title,
+              selected: false,
+              onPressed: () => context.push(
+                SkyRoutes.player(
+                  detail.sourceId,
+                  detail.id,
+                  lineIndex: lineIndex,
+                  episodeIndex: index,
+                ),
+                extra: detail,
+              ),
+            );
+          },
+        ),
+      );
+    }
+    return slivers;
+  }
+
+  double _detailHorizontalInset(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    return math.max(20.0, (width - 1120) / 2 + 20);
   }
 
   Future<MediaDetail?> _load() async {
@@ -270,51 +306,6 @@ class _DetailContentWidth extends StatelessWidget {
           width: math.min(constraints.maxWidth, 1120),
           child: child,
         ),
-      ),
-    );
-  }
-}
-
-class _PlayLineBlock extends StatelessWidget {
-  const _PlayLineBlock({
-    required this.detail,
-    required this.line,
-    required this.lineIndex,
-  });
-
-  final MediaDetail detail;
-  final PlayLine line;
-  final int lineIndex;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(line.name, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              for (var i = 0; i < line.episodes.length; i++)
-                FilledButton.tonal(
-                  onPressed: () => context.push(
-                    SkyRoutes.player(
-                      detail.sourceId,
-                      detail.id,
-                      lineIndex: lineIndex,
-                      episodeIndex: i,
-                    ),
-                    extra: detail,
-                  ),
-                  child: Text(line.episodes[i].title),
-                ),
-            ],
-          ),
-        ],
       ),
     );
   }
