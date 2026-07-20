@@ -126,15 +126,13 @@ final homeDataProvider = FutureProvider.autoDispose((ref) async {
   );
 });
 
-final homeRecommendProvider = FutureProvider.autoDispose<List<MediaItem>>((
-  ref,
-) async {
+final homeFeedProvider = FutureProvider.autoDispose<HomeFeed>((ref) async {
   final sources = await ref.watch(sourcesProvider.future);
   final mediaRepo = await ref.watch(mediaRepositoryProvider.future);
   if (mediaRepo.enabledSources(sources).isEmpty) {
-    return const [];
+    return HomeFeed.empty;
   }
-  return mediaRepo.homeRecommendations(sources);
+  return mediaRepo.homeFeed(sources);
 });
 
 class HomeData {

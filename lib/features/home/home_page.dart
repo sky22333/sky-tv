@@ -9,6 +9,7 @@ import '../../core/models/media_models.dart';
 import '../../data/repositories/app_providers.dart';
 import '../../ui/widgets/app_dialogs.dart';
 import '../../ui/widgets/app_logo.dart';
+import '../../ui/widgets/home_focus_carousel.dart';
 import '../../ui/widgets/poster_row.dart';
 import '../../ui/widgets/state_views.dart';
 
@@ -34,13 +35,13 @@ class HomePage extends ConsumerWidget {
         data: (home) => RefreshIndicator(
           onRefresh: () async {
             ref.invalidate(homeDataProvider);
-            ref.invalidate(homeRecommendProvider);
+            ref.invalidate(homeFeedProvider);
           },
           child: ListView(
             children: [
+              const _HomeDiscover(),
               if (home.recentSearches.isNotEmpty)
                 _RecentSearches(keywords: home.recentSearches),
-              const _HomeRecommend(),
               SectionHeader(
                 title: '继续观看',
                 action: home.records.isEmpty
@@ -145,7 +146,7 @@ Future<void> _removeFavorite(
   final repo = await ref.read(mediaRepositoryProvider.future);
   repo.toggleFavorite(item);
   ref.invalidate(homeDataProvider);
-  ref.invalidate(homeRecommendProvider);
+  ref.invalidate(homeFeedProvider);
 }
 
 class _RecentSearches extends StatelessWidget {
@@ -180,8 +181,8 @@ class _RecentSearches extends StatelessWidget {
   }
 }
 
-class _HomeRecommend extends ConsumerWidget {
-  const _HomeRecommend();
+class _HomeDiscover extends ConsumerWidget {
+  const _HomeDiscover();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -193,28 +194,39 @@ class _HomeRecommend extends ConsumerWidget {
     if (!hasEnabled) {
       return const SizedBox.shrink();
     }
-    final recommend = ref.watch(homeRecommendProvider);
-    return recommend.when(
+    final feed = ref.watch(homeFeedProvider);
+    return feed.when(
       skipLoadingOnReload: true,
-      data: (items) {
-        if (items.isEmpty) {
+      data: (homeFeed) {
+        if (homeFeed.isEmpty) {
           return const SizedBox.shrink();
         }
         return Column(
           children: [
-            SectionHeader(
-              title: '为你推荐',
-              action: TextButton(
-                onPressed: () => context.go('/sources'),
-                child: const Text('更多'),
+            if (homeFeed.focus.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: HomeFocusCarousel(
+                  items: homeFeed.focus,
+                  onTap: (item) =>
+                      context.push(SkyRoutes.detail(item.sourceId, item.id)),
+                ),
               ),
-            ),
-            PosterRow(
-              items: items,
-              onTap: (item) =>
-                  context.push(SkyRoutes.detail(item.sourceId, item.id)),
-            ),
-            const SizedBox(height: 4),
+            if (homeFeed.recommend.isNotEmpty) ...[
+              SectionHeader(
+                title: '为你推荐',
+                action: TextButton(
+                  onPressed: () => context.go('/sources'),
+                  child: const Text('更多'),
+                ),
+              ),
+              PosterRow(
+                items: homeFeed.recommend,
+                onTap: (item) =>
+                    context.push(SkyRoutes.detail(item.sourceId, item.id)),
+              ),
+              const SizedBox(height: 4),
+            ],
           ],
         );
       },

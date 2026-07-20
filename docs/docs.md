@@ -104,7 +104,7 @@ lib/
     source/
       source_id.dart          源 ID、名称、URL 规范化
     upstream/
-      maccms_api.dart         MacCMS 上游请求（categories/search/detail/recent）
+      maccms_api.dart         MacCMS 上游请求（categories/search/detail/latest/recent）
 
   data/
     repositories/
@@ -185,7 +185,7 @@ AGENTS.md                     指向 ./docs/docs.md
 
 - 搜索：对启用源并发请求，批次大小与并发上限见 `MediaRepository` 常量；结果以 `Stream<SearchEvent>` 推送。
 - 详情、搜索、分类预览、首页推荐均有内存缓存，带条目上限与 TTL。
-- 首页推荐（`homeRecommendProvider`）：优先续看所在源，最多尝试 3 个源；调用 `MacCmsApi.recentVideos(h=72)`；过滤已在续看/收藏中的条目；10 分钟内存缓存。
+- 首页发现（`homeFeedProvider`）：优先续看所在源，最多尝试 3 个源；单次拉取拆成竖版焦点与「为你推荐」。主路径 `latestVideos`（`videolist&pg=1`），空池回退 `recentVideos(h=72)`；有海报、排除续看/收藏；焦点最多 5、推荐最多 8，同源去重；10 分钟内存缓存。
 - 分类列表持久化在 `source_categories` 表；预览行在 `categoryPreviewRowsProvider`。
 - 收藏、续看、最近搜索关键词持久化在 sqlite；续看主键为 `(source_id, media_id)`。
 
@@ -223,7 +223,7 @@ AGENTS.md                     指向 ./docs/docs.md
 ### 设置与缓存
 
 - 主题：系统 / 浅色 / 深色。
-- 「刷新首页数据」：`invalidate(homeDataProvider)` + `invalidate(homeRecommendProvider)`。
+- 「刷新首页数据」：`invalidate(homeDataProvider)` + `invalidate(homeFeedProvider)`。
 - 「清理缓存」：清理 Repository 内存缓存与数据库中的分类缓存等（见 `settings_page.dart` 实现）。
 
 ## UI 规范
@@ -237,8 +237,8 @@ AGENTS.md                     指向 ./docs/docs.md
 - 搜索、导入、加载、空状态和错误状态有清晰反馈（`state_views.dart`）。
 - 不使用无意义装饰动画或复杂视觉噪声。
 - 海报统一走 `PosterImage`（`cached_network_image` + `PosterFallback`）；列表卡片用 `PosterCard`（底部渐变叠标题与 meta）。
-- 首页「为你推荐 / 继续观看 / 我的收藏」均为 `PosterRow` / `ContinueWatchRow` 横向滚动（宽 118，2:3）；分类页用 `densePosterGridDelegate`。
-- 解码尺寸由 `posterMemCacheFor(展示宽度)` 按 DPR 计算，勿在页面层重复写 `CachedNetworkImage`。
+- 首页竖版焦点用 `HomeFocusCarousel`（复用 `PosterCard`、viewport 约 0.38、环形无限滚动、无 3D、后台/拖拽暂停自动切换）；「为你推荐 / 继续观看 / 我的收藏」为 `PosterRow` / `ContinueWatchRow` 横向滚动（宽 118，2:3）；分类页用 `densePosterGridDelegate`。
+- 解码尺寸由 `posterMemCacheFor(展示宽度)` 按 DPR 计算（默认 max 720，只约束宽度保比例）；勿在页面层重复写 `CachedNetworkImage`。
 
 ## 性能规范
 

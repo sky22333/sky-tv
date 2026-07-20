@@ -285,7 +285,7 @@ class _DetailPageState extends ConsumerState<DetailPage> {
     }
     setState(() => _isFavorite = favorite);
     ref.invalidate(homeDataProvider);
-    ref.invalidate(homeRecommendProvider);
+    ref.invalidate(homeFeedProvider);
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(favorite ? '已收藏' : '已取消收藏')));

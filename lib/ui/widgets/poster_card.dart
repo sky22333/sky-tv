@@ -40,10 +40,10 @@ String? _joinMeta(List<String?> parts) {
   return text.isEmpty ? null : text;
 }
 
-int posterMemCacheFor(double displayWidth) {
+int posterMemCacheFor(double displayWidth, {int max = 720}) {
   final ratio =
       WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
-  return (displayWidth * ratio).ceil().clamp(88, 400);
+  return (displayWidth * ratio).ceil().clamp(88, max);
 }
 
 class PosterImage extends StatelessWidget {
@@ -63,12 +63,11 @@ class PosterImage extends StatelessWidget {
     if (url == null || url!.isEmpty) {
       return const PosterFallback();
     }
-    final cacheHeight = (memCacheWidth * 1.5).round();
+    // 只约束宽度，保比例解码，避免 exact 双约束发糊。
     return CachedNetworkImage(
       imageUrl: url!,
       fit: fit,
       memCacheWidth: memCacheWidth,
-      memCacheHeight: cacheHeight,
       placeholder: (_, _) => const PosterFallback(),
       errorWidget: (_, _, _) => const PosterFallback(),
     );

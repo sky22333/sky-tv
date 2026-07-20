@@ -65,10 +65,10 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.refresh_rounded),
             title: const Text('刷新首页数据'),
-            subtitle: const Text('刷新推荐、续看与收藏'),
+            subtitle: const Text('刷新焦点、推荐、续看与收藏'),
             onTap: () {
               ref.invalidate(homeDataProvider);
-              ref.invalidate(homeRecommendProvider);
+              ref.invalidate(homeFeedProvider);
               ScaffoldMessenger.of(
                 context,
               ).showSnackBar(const SnackBar(content: Text('首页数据已刷新')));
@@ -151,7 +151,7 @@ class SettingsPage extends ConsumerWidget {
       final db = await ref.read(databaseProvider.future);
       db.clearCache();
       ref.invalidate(homeDataProvider);
-      ref.invalidate(homeRecommendProvider);
+      ref.invalidate(homeFeedProvider);
       ref.invalidate(sourcesProvider);
       ref.invalidate(sourceRepositoryProvider);
       ref.invalidate(iptvRepositoryProvider);

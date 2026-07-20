@@ -78,6 +78,14 @@ class MacCmsApi {
     return _parser.parseMediaList(json, source);
   }
 
+  Future<List<MediaItem>> latestVideos(
+    VideoSource source, {
+    int page = 1,
+  }) async {
+    final json = await _get(source, {'ac': 'videolist', 'pg': '$page'});
+    return _parser.parseMediaList(json, source);
+  }
+
   Future<List<SourceCategory>> categories(VideoSource source) async {
     final json = await _get(source, {'ac': 'list'});
     return _parser.parseCategories(json, source);

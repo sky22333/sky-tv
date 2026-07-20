@@ -37,20 +37,21 @@ class MediaRepository {
   static const categoryPreviewLimit = 6;
   static const categoryPreviewRowCount = 4;
   static const homeRecommendHours = 72;
+  static const homeFocusLimit = 5;
   static const homeRecommendLimit = 8;
   static const _maxConcurrentSearches = 4;
   static const _maxConcurrentCategoryPreviews = 3;
   static const _maxSearchCacheEntries = 300;
   static const _maxDetailCacheEntries = 400;
   static const _maxCategoryPreviewCacheEntries = 200;
-  static const _maxHomeRecommendCacheEntries = 20;
+  static const _maxHomeFeedCacheEntries = 20;
 
   final AppDatabase db;
   final MacCmsApi api;
   final _searchCache = <String, _CacheEntry<List<MediaItem>>>{};
   final _detailCache = <String, _CacheEntry<MediaDetail>>{};
   final _categoryPreviewCache = <String, _CacheEntry<List<MediaItem>>>{};
-  final _homeRecommendCache = <String, _CacheEntry<List<MediaItem>>>{};
+  final _homeFeedCache = <String, _CacheEntry<List<MediaItem>>>{};
 
   List<WatchRecord> watchRecords() => db.loadWatchRecords();
 
@@ -230,27 +231,86 @@ class MediaRepository {
     return rows;
   }
 
-  Future<List<MediaItem>> homeRecommendations(List<VideoSource> sources) async {
+  Future<HomeFeed> homeFeed(List<VideoSource> sources) async {
     final candidates = _recommendSourceCandidates(sources);
     if (candidates.isEmpty) {
-      return const [];
+      return HomeFeed.empty;
     }
     final exclude = _personalMediaKeys();
     for (final source in candidates.take(3)) {
       try {
-        final items = await _loadRecentRecommend(source);
-        final filtered = items
-            .where((item) => !exclude.contains(_mediaKey(item)))
+        final pool = await _loadHomePool(source, exclude);
+        if (pool.isEmpty) {
+          continue;
+        }
+        final focus = pool.take(homeFocusLimit).toList();
+        final recommend = pool
+            .skip(focus.length)
             .take(homeRecommendLimit)
             .toList();
-        if (filtered.isNotEmpty) {
-          return filtered;
-        }
+        return HomeFeed(focus: focus, recommend: recommend);
       } catch (_) {
         continue;
       }
     }
-    return const [];
+    return HomeFeed.empty;
+  }
+
+  Future<List<MediaItem>> _loadHomePool(
+    VideoSource source,
+    Set<String> exclude,
+  ) async {
+    var pool = _homePoolFrom(
+      await _cachedVideos(source, latest: true),
+      exclude,
+    );
+    if (pool.isNotEmpty) {
+      return pool;
+    }
+    return _homePoolFrom(await _cachedVideos(source, latest: false), exclude);
+  }
+
+  List<MediaItem> _homePoolFrom(List<MediaItem> items, Set<String> exclude) {
+    final pool = <MediaItem>[];
+    final seen = <String>{};
+    for (final item in items) {
+      final poster = item.poster?.trim();
+      if (poster == null || poster.isEmpty) {
+        continue;
+      }
+      final key = _mediaKey(item);
+      if (exclude.contains(key) || !seen.add(key)) {
+        continue;
+      }
+      pool.add(item);
+      if (pool.length >= homeFocusLimit + homeRecommendLimit) {
+        break;
+      }
+    }
+    return pool;
+  }
+
+  Future<List<MediaItem>> _cachedVideos(
+    VideoSource source, {
+    required bool latest,
+  }) async {
+    final key = latest
+        ? '${source.sourceId}|latest|1'
+        : '${source.sourceId}|h|$homeRecommendHours';
+    final cached = _homeFeedCache[key];
+    if (cached != null && !cached.expired) {
+      return cached.value;
+    }
+    final items = latest
+        ? await api.latestVideos(source)
+        : await api.recentVideos(source, hours: homeRecommendHours);
+    _writeCache(
+      _homeFeedCache,
+      key,
+      _CacheEntry(items, const Duration(minutes: 10)),
+      _maxHomeFeedCacheEntries,
+    );
+    return items;
   }
 
   List<VideoSource> _recommendSourceCandidates(List<VideoSource> sources) {
@@ -281,22 +341,6 @@ class MediaRepository {
       keys.add('${item.sourceId}|${item.id}');
     }
     return keys;
-  }
-
-  Future<List<MediaItem>> _loadRecentRecommend(VideoSource source) async {
-    final key = '${source.sourceId}|$homeRecommendHours';
-    final cached = _homeRecommendCache[key];
-    if (cached != null && !cached.expired) {
-      return cached.value;
-    }
-    final items = await api.recentVideos(source, hours: homeRecommendHours);
-    _writeCache(
-      _homeRecommendCache,
-      key,
-      _CacheEntry(items, const Duration(minutes: 10)),
-      _maxHomeRecommendCacheEntries,
-    );
-    return items;
   }
 
   String _mediaKey(MediaItem item) => '${item.sourceId}|${item.id}';
@@ -363,6 +407,17 @@ class MediaRepository {
       cache.remove(cache.keys.first);
     }
   }
+}
+
+class HomeFeed {
+  const HomeFeed({required this.focus, required this.recommend});
+
+  static const empty = HomeFeed(focus: [], recommend: []);
+
+  final List<MediaItem> focus;
+  final List<MediaItem> recommend;
+
+  bool get isEmpty => focus.isEmpty && recommend.isEmpty;
 }
 
 class _CacheEntry<T> {
