@@ -23,6 +23,7 @@ class LivePage extends ConsumerStatefulWidget {
 class _LivePageState extends ConsumerState<LivePage> {
   static const _searchDebounce = Duration(milliseconds: 300);
 
+  final _searchController = TextEditingController();
   String? _group;
   String _keyword = '';
   Timer? _searchTimer;
@@ -43,6 +44,7 @@ class _LivePageState extends ConsumerState<LivePage> {
   @override
   void dispose() {
     _searchTimer?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -101,6 +103,7 @@ class _LivePageState extends ConsumerState<LivePage> {
                       child: _LiveToolbar(
                         groups: data.groups,
                         group: _group,
+                        searchController: _searchController,
                         onGroupChanged: (value) =>
                             setState(() => _group = value),
                         onSearchChanged: _onSearchChanged,
@@ -288,12 +291,14 @@ class _LiveToolbar extends StatelessWidget {
   const _LiveToolbar({
     required this.groups,
     required this.group,
+    required this.searchController,
     required this.onGroupChanged,
     required this.onSearchChanged,
   });
 
   final List<String> groups;
   final String? group;
+  final TextEditingController searchController;
   final ValueChanged<String?> onGroupChanged;
   final ValueChanged<String> onSearchChanged;
 
@@ -303,7 +308,11 @@ class _LiveToolbar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
       child: Column(
         children: [
-          AppSearchField(hintText: '搜索频道', onChanged: onSearchChanged),
+          AppSearchField(
+            controller: searchController,
+            hintText: '搜索频道',
+            onChanged: onSearchChanged,
+          ),
           const SizedBox(height: 12),
           LiveGroupSelector(
             groups: groups,

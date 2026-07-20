@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/upstream/maccms_api.dart';
@@ -13,6 +14,12 @@ final databaseProvider = FutureProvider<AppDatabase>((ref) async {
   final db = await AppDatabase.open();
   ref.onDispose(db.close);
   return db;
+});
+
+final httpClientProvider = Provider<http.Client>((ref) {
+  final client = http.Client();
+  ref.onDispose(client.close);
+  return client;
 });
 
 final customUserAgentProvider = FutureProvider((ref) async {
@@ -30,7 +37,8 @@ final requestHeadersProvider = FutureProvider<Map<String, String>>((ref) async {
 
 final macCmsApiProvider = FutureProvider<MacCmsApi>((ref) async {
   final headers = await ref.watch(requestHeadersProvider.future);
-  final api = MacCmsApi(headers: headers);
+  final client = ref.watch(httpClientProvider);
+  final api = MacCmsApi(client: client, headers: headers);
   ref.onDispose(api.close);
   return api;
 });
@@ -38,13 +46,19 @@ final macCmsApiProvider = FutureProvider<MacCmsApi>((ref) async {
 final sourceRepositoryProvider = FutureProvider<SourceRepository>((ref) async {
   final db = await ref.watch(databaseProvider.future);
   final headers = await ref.watch(requestHeadersProvider.future);
-  return SourceRepository(db, headers: headers);
+  final client = ref.watch(httpClientProvider);
+  final repo = SourceRepository(db, client: client, headers: headers);
+  ref.onDispose(repo.close);
+  return repo;
 });
 
 final iptvRepositoryProvider = FutureProvider<IptvRepository>((ref) async {
   final db = await ref.watch(databaseProvider.future);
   final headers = await ref.watch(requestHeadersProvider.future);
-  return IptvRepository(db, headers: headers);
+  final client = ref.watch(httpClientProvider);
+  final repo = IptvRepository(db, client: client, headers: headers);
+  ref.onDispose(repo.close);
+  return repo;
 });
 
 final mediaRepositoryProvider = FutureProvider<MediaRepository>((ref) async {

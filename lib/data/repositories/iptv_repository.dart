@@ -10,10 +10,17 @@ import '../../core/source/source_id.dart';
 import '../storage/app_database.dart';
 
 class IptvRepository {
-  IptvRepository(this._db, {Map<String, String> headers = const {}})
-    : _headers = Map.unmodifiable(headers);
+  IptvRepository(
+    this._db, {
+    http.Client? client,
+    Map<String, String> headers = const {},
+  }) : _client = client ?? http.Client(),
+       _ownsClient = client == null,
+       _headers = Map.unmodifiable(headers);
 
   final AppDatabase _db;
+  final http.Client _client;
+  final bool _ownsClient;
   final Map<String, String> _headers;
 
   IptvLibrary library({String? group, String? keyword}) {
@@ -35,7 +42,7 @@ class IptvRepository {
     if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
       throw const FormatException('IPTV 订阅地址只支持 http/https');
     }
-    final response = await http
+    final response = await _client
         .get(uri, headers: _headers)
         .timeout(const Duration(seconds: 15));
     if (response.statusCode != 200) {
@@ -132,5 +139,11 @@ class IptvRepository {
 
   void deleteSubscription(String id) {
     _db.deleteIptvSubscription(id);
+  }
+
+  void close() {
+    if (_ownsClient) {
+      _client.close();
+    }
   }
 }

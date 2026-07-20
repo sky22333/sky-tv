@@ -10,10 +10,17 @@ import '../../core/source/source_id.dart';
 import '../storage/app_database.dart';
 
 class SourceRepository {
-  SourceRepository(this._db, {Map<String, String> headers = const {}})
-    : _headers = Map.unmodifiable(headers);
+  SourceRepository(
+    this._db, {
+    http.Client? client,
+    Map<String, String> headers = const {},
+  }) : _client = client ?? http.Client(),
+       _ownsClient = client == null,
+       _headers = Map.unmodifiable(headers);
 
   final AppDatabase _db;
+  final http.Client _client;
+  final bool _ownsClient;
   final Map<String, String> _headers;
 
   List<VideoSource> sources() => _db.loadSources();
@@ -46,7 +53,7 @@ class SourceRepository {
     }
 
     final id = buildHash(normalizedUrl).substring(0, 16);
-    final response = await http
+    final response = await _client
         .get(uri, headers: _headers)
         .timeout(const Duration(seconds: 10));
     if (response.statusCode != 200) {
@@ -99,20 +106,22 @@ class SourceRepository {
 
   Future<LatencyTestResult> testLatencies(List<VideoSource> sources) async {
     final active = sources.where((source) => !source.disabled).toList();
+    if (active.isEmpty) {
+      return const LatencyTestResult(total: 0, succeeded: 0);
+    }
     final queue = List<VideoSource>.from(active);
     const maxConcurrent = 16;
     var running = 0;
     var completed = 0;
     var succeeded = 0;
     final done = Completer<void>();
-    final client = http.Client();
 
     void pump() {
       while (running < maxConcurrent && queue.isNotEmpty) {
         final source = queue.removeAt(0);
         running++;
         unawaited(
-          _testLatency(client, source)
+          _testLatency(source)
               .then((latency) {
                 _db.updateSourceLatency(source.sourceId, latency);
                 if (latency != null) {
@@ -132,17 +141,9 @@ class SourceRepository {
       }
     }
 
-    if (active.isEmpty) {
-      client.close();
-      return const LatencyTestResult(total: 0, succeeded: 0);
-    }
-    try {
-      pump();
-      await done.future;
-      return LatencyTestResult(total: active.length, succeeded: succeeded);
-    } finally {
-      client.close();
-    }
+    pump();
+    await done.future;
+    return LatencyTestResult(total: active.length, succeeded: succeeded);
   }
 
   void setDisabled(String sourceId, bool disabled) {
@@ -153,13 +154,19 @@ class SourceRepository {
     _db.deleteSource(sourceId);
   }
 
-  Future<int?> _testLatency(http.Client client, VideoSource source) async {
+  void close() {
+    if (_ownsClient) {
+      _client.close();
+    }
+  }
+
+  Future<int?> _testLatency(VideoSource source) async {
     final uri = Uri.parse(
       source.apiUrl,
     ).replace(queryParameters: const {'ac': 'list'});
     final watch = Stopwatch()..start();
     try {
-      final response = await client
+      final response = await _client
           .get(uri, headers: _headers)
           .timeout(const Duration(seconds: 3));
       if (response.statusCode != 200) {

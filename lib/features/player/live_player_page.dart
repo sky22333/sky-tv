@@ -34,6 +34,7 @@ class _LivePlayerPageState extends ConsumerState<LivePlayerPage> {
   IptvChannel? _channel;
   Map<String, String> _requestHeaders = const {};
   String? _group;
+  final _searchController = TextEditingController();
   String _keyword = '';
   String? _loadError;
   bool _loading = true;
@@ -55,6 +56,7 @@ class _LivePlayerPageState extends ConsumerState<LivePlayerPage> {
   @override
   void dispose() {
     _searchTimer?.cancel();
+    _searchController.dispose();
     _subtitleNotifier.dispose();
     if (!_playerDisposed) {
       unawaited(_player.dispose());
@@ -178,6 +180,7 @@ class _LivePlayerPageState extends ConsumerState<LivePlayerPage> {
                   selectedId: channel?.id,
                   group: _group,
                   keyword: _keyword,
+                  searchController: _searchController,
                   onGroupChanged: (value) => setState(() => _group = value),
                   onSearchChanged: _onSearchChanged,
                   onSelected: (item) => unawaited(_playChannel(item)),
@@ -260,6 +263,7 @@ class _LivePlayerPageState extends ConsumerState<LivePlayerPage> {
                 selectedId: _channel?.id,
                 group: group,
                 keyword: keyword,
+                searchController: _searchController,
                 dark: true,
                 onGroupChanged: (value) {
                   setDialogState(() => group = value);
@@ -292,6 +296,7 @@ class _LiveChannelBrowser extends StatelessWidget {
     required this.selectedId,
     required this.group,
     required this.keyword,
+    required this.searchController,
     required this.onGroupChanged,
     required this.onSearchChanged,
     required this.onSelected,
@@ -302,6 +307,7 @@ class _LiveChannelBrowser extends StatelessWidget {
   final String? selectedId;
   final String? group;
   final String keyword;
+  final TextEditingController searchController;
   final ValueChanged<String?> onGroupChanged;
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<IptvChannel> onSelected;
@@ -316,6 +322,7 @@ class _LiveChannelBrowser extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
           child: AppSearchField(
+            controller: searchController,
             hintText: '搜索频道',
             dark: dark,
             onChanged: onSearchChanged,

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -30,6 +31,18 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   int _searchToken = 0;
   int _searchedSourceCount = 0;
   int _enabledSourceCount = 0;
+
+  static bool get _desktopAutofocus {
+    if (kIsWeb) {
+      return false;
+    }
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.windows ||
+      TargetPlatform.linux ||
+      TargetPlatform.macOS => true,
+      _ => false,
+    };
+  }
 
   @override
   void didChangeDependencies() {
@@ -192,7 +205,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     child: AppSearchField(
                       controller: _controller,
                       hintText: '搜索片名',
+                      autofocus: _desktopAutofocus,
                       onSubmitted: _search,
+                      onChanged: (value) {
+                        if (value.trim().isEmpty) {
+                          unawaited(_search(''));
+                        }
+                      },
                     ),
                   ),
                   Expanded(

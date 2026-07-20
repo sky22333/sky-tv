@@ -10,6 +10,7 @@ class AppSearchField extends StatelessWidget {
     this.onChanged,
     this.onSubmitted,
     this.textInputAction,
+    this.autofocus = false,
     this.dark = false,
   });
 
@@ -19,6 +20,7 @@ class AppSearchField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final TextInputAction? textInputAction;
+  final bool autofocus;
   final bool dark;
 
   @override
@@ -26,8 +28,37 @@ class AppSearchField extends StatelessWidget {
     final secondary = dark
         ? Colors.white70
         : Theme.of(context).colorScheme.onSurfaceVariant;
+    final c = controller;
+    if (c == null) {
+      return _field(context, secondary, suffixIcon: null);
+    }
+    return ListenableBuilder(
+      listenable: c,
+      builder: (_, _) => _field(
+        context,
+        secondary,
+        suffixIcon: c.text.isEmpty
+            ? null
+            : IconButton(
+                onPressed: () {
+                  c.clear();
+                  onChanged?.call('');
+                },
+                icon: Icon(Icons.clear_rounded, size: 20, color: secondary),
+                tooltip: '清除',
+              ),
+      ),
+    );
+  }
+
+  Widget _field(
+    BuildContext context,
+    Color secondary, {
+    required Widget? suffixIcon,
+  }) {
     return TextField(
       controller: controller,
+      autofocus: autofocus,
       onChanged: onChanged,
       onSubmitted: onSubmitted,
       textInputAction: textInputAction ?? TextInputAction.search,
@@ -36,6 +67,7 @@ class AppSearchField extends StatelessWidget {
         context,
         hintText: hintText,
         prefixIcon: prefixIcon,
+        suffixIcon: suffixIcon,
         hintStyle: TextStyle(color: secondary),
         dark: dark,
       ),
@@ -57,6 +89,7 @@ class AppInputDecoration {
     String? hintText,
     String? labelText,
     Widget? prefixIcon,
+    Widget? suffixIcon,
     TextStyle? hintStyle,
     bool dark = false,
   }) {
@@ -73,6 +106,7 @@ class AppInputDecoration {
       hintText: hintText,
       labelText: labelText,
       prefixIcon: prefixIcon,
+      suffixIcon: suffixIcon,
       hintStyle: hintStyle,
       filled: true,
       fillColor: fillColor,

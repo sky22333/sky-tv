@@ -13,10 +13,12 @@ class MacCmsApi {
     Map<String, String> headers = const {},
   }) : _headers = Map.unmodifiable(headers),
        _client = client ?? http.Client(),
+       _ownsClient = client == null,
        _parser = parser ?? MacCmsParser();
 
   final Map<String, String> _headers;
   final http.Client _client;
+  final bool _ownsClient;
   final MacCmsParser _parser;
 
   Future<Map<String, Object?>> _get(
@@ -91,5 +93,9 @@ class MacCmsApi {
     return _parser.parseDetail(fallback, source);
   }
 
-  void close() => _client.close();
+  void close() {
+    if (_ownsClient) {
+      _client.close();
+    }
+  }
 }
