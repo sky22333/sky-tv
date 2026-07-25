@@ -2,7 +2,14 @@
 
 sky-tv 是一个现代化跨平台视频播放器空壳应用，支持导入用户自己的影视源和 IPTV 直播源，用于搜索、分类、播放、收藏和继续观看。
 
-[界面预览图](https://github.com/sky22333/sky-tv/blob/main/docs/img/README.md)
+
+### 预览
+
+<div style="display:inline-block">
+<img src="https://cdn.jsdelivr.net/gh/sky22333/sky-tv@main/docs/img/1.jpg" alt="demo1" width="230">
+<img src="https://cdn.jsdelivr.net/gh/sky22333/sky-tv@main/docs/img/2.jpg" alt="demo2" width="230">
+<img src="https://cdn.jsdelivr.net/gh/sky22333/sky-tv@main/docs/img/3.jpg" alt="demo3" width="230">
+</div>
 
 ### 声明
 
