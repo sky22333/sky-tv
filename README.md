@@ -6,9 +6,9 @@ sky-tv 是一个现代化跨平台视频播放器空壳应用，支持导入用�
 ### 预览
 
 <div style="display:inline-block">
-<img src="https://cdn.jsdelivr.net/gh/sky22333/sky-tv@main/docs/img/1.jpg" alt="demo1" width="230">
-<img src="https://cdn.jsdelivr.net/gh/sky22333/sky-tv@main/docs/img/2.jpg" alt="demo2" width="230">
-<img src="https://cdn.jsdelivr.net/gh/sky22333/sky-tv@main/docs/img/3.jpg" alt="demo3" width="230">
+<img src="docs/img/1.jpg" alt="demo1" width="230">
+<img src="docs/img/2.jpg" alt="demo2" width="230">
+<img src="docs/img/3.jpg" alt="demo3" width="230">
 </div>
 
 ### 声明
