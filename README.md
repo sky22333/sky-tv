@@ -82,7 +82,3 @@ IPTV 也可以直接导入公开 M3U、M3U8 或 TXT 订阅地址。
 flutter pub get
 flutter run
 ```
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/chart?repos=sky22333/sky-tv&type=date&legend=top-left)](https://www.star-history.com/?repos=sky22333%2Fsky-tv&type=date&legend=top-left)
