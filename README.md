@@ -3,7 +3,7 @@
 sky-tv 是一个现代化跨平台视频播放器空壳应用，支持导入用户自己的影视源和 IPTV 直播源，用于搜索、分类、播放、收藏和继续观看。
 
 
-### 预览
+### 演示
 
 <div style="display:inline-block">
 <img src="docs/img/1.jpg" alt="demo1" width="230">
