@@ -80,9 +80,6 @@ class SourceRepository {
     }
 
     final result = importJson(body);
-    if (result.sources.isNotEmpty) {
-      _db.upsertSources(result.sources);
-    }
     _db.upsertSubscription(
       SourceSubscription(
         id: id,

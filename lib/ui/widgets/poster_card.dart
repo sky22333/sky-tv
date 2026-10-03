@@ -6,7 +6,7 @@ import 'poster_fallback.dart';
 
 const densePosterGridDelegate = SliverGridDelegateWithMaxCrossAxisExtent(
   maxCrossAxisExtent: 124,
-  childAspectRatio: 0.58,
+  childAspectRatio: 2 / 3,
   crossAxisSpacing: 8,
   mainAxisSpacing: 10,
 );

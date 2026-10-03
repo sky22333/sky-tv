@@ -16,7 +16,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  APP_NAME: sky-tv
   FLUTTER_CHANNEL: stable
 
 jobs:
@@ -42,7 +41,7 @@ jobs:
       - name: 检查代码格式
         run: |
           echo "检查 Dart 代码格式"
-          dart format --set-exit-if-changed lib test
+          dart format --set-exit-if-changed lib test test_flutter
 
       - name: 代码静态分析
         run: |
@@ -53,6 +52,7 @@ jobs:
         run: |
           echo "执行 dart test"
           dart test
+          flutter test test_flutter
 
   android:
     name: Android 正式版

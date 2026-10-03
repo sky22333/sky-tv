@@ -143,10 +143,19 @@ class _SourcesPageState extends ConsumerState<SourcesPage> {
 
   Future<void> _refreshBrowse() async {
     final sourceId = _selectedSourceId;
-    ref.invalidate(sourcesProvider);
-    if (sourceId != null) {
+    if (sourceId == null) return;
+    try {
+      final repo = await ref.read(mediaRepositoryProvider.future);
+      if (!mounted) return;
+      repo.clearBrowseCache(sourceId);
       ref.invalidate(sourceCategoriesProvider(sourceId));
-      ref.invalidate(categoryPreviewRowsProvider(sourceId));
+      await ref.read(categoryPreviewRowsProvider(sourceId).future);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('刷新失败：$error')));
+      }
     }
   }
 
@@ -248,10 +257,11 @@ class _MobileBrowse extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
               child: _SourceChipRow(
                 sources: enabled,
                 selectedId: sourceId,
@@ -350,6 +360,7 @@ class _DesktopBrowse extends ConsumerWidget {
               : RefreshIndicator(
                   onRefresh: onRefresh,
                   child: CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     slivers: _BrowseContent(
                       sourceId: sourceId,
                       crossAxisCount: 4,
@@ -457,7 +468,7 @@ class _BrowseContent {
           }
           return [
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
               sliver: SliverGrid.builder(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: crossAxisCount,

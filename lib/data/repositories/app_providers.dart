@@ -135,6 +135,19 @@ final homeFeedProvider = FutureProvider.autoDispose<HomeFeed>((ref) async {
   return mediaRepo.homeFeed(sources);
 });
 
+Future<void> refreshHomeData(WidgetRef ref) async {
+  final (mediaRepo, sourceRepo) = await (
+    ref.read(mediaRepositoryProvider.future),
+    ref.read(sourceRepositoryProvider.future),
+  ).wait;
+  mediaRepo.clearHomeFeedCache();
+  await mediaRepo.homeFeed(sourceRepo.sources());
+  if (ref.context.mounted) {
+    ref.invalidate(homeDataProvider);
+    ref.invalidate(homeFeedProvider);
+  }
+}
+
 class HomeData {
   const HomeData({
     required this.records,

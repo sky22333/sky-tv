@@ -51,26 +51,4 @@ class VideoSource {
   final int avgLatencyMs;
   final DateTime? lastSuccessAt;
   final DateTime? lastFailureAt;
-
-  VideoSource copyWith({
-    String? sourceId,
-    String? name,
-    String? apiUrl,
-    bool? disabled,
-    int? sortOrder,
-    int? avgLatencyMs,
-    DateTime? lastSuccessAt,
-    DateTime? lastFailureAt,
-  }) {
-    return VideoSource(
-      sourceId: sourceId ?? this.sourceId,
-      name: name ?? this.name,
-      apiUrl: apiUrl ?? this.apiUrl,
-      disabled: disabled ?? this.disabled,
-      sortOrder: sortOrder ?? this.sortOrder,
-      avgLatencyMs: avgLatencyMs ?? this.avgLatencyMs,
-      lastSuccessAt: lastSuccessAt ?? this.lastSuccessAt,
-      lastFailureAt: lastFailureAt ?? this.lastFailureAt,
-    );
-  }
 }

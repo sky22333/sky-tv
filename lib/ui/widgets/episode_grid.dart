@@ -5,7 +5,10 @@ const episodeGridMinTileWidth = 108.0;
 const episodeGridTileHeight = 38.0;
 
 int episodeGridColumnsFor(double width) {
-  return (width / episodeGridMinTileWidth).floor().clamp(3, 6);
+  return ((width + episodeGridSpacing) /
+          (episodeGridMinTileWidth + episodeGridSpacing))
+      .floor()
+      .clamp(1, 6);
 }
 
 /// 虚拟化分集网格（必须作为 CustomScrollView / 可滚动视口的 sliver）。

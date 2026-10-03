@@ -309,7 +309,7 @@ class _LiveToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final secondary = Theme.of(context).colorScheme.onSurfaceVariant;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 6),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -325,7 +325,7 @@ class _LiveToolbar extends StatelessWidget {
             onChanged: onGroupChanged,
           ),
           Padding(
-            padding: const EdgeInsets.only(top: 8, left: 2),
+            padding: const EdgeInsets.only(top: 8),
             child: Text(
               '$channelCount 个频道',
               style: TextStyle(color: secondary, fontSize: 12),

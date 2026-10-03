@@ -12,7 +12,6 @@ dependencies:
 
   cached_network_image: ^3.4.1
   crypto: ^3.0.7
-  cupertino_icons: ^1.0.8
   flex_color_scheme: ^8.4.0
   flutter_riverpod: ^3.3.2
   go_router: ^17.3.0

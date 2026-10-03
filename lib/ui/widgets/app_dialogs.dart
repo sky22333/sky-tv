@@ -116,7 +116,6 @@ class _AppTextInputDialogState extends State<_AppTextInputDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final inset = MediaQuery.viewInsetsOf(context).bottom;
     final field = TextField(
       controller: _controller,
       autofocus: widget.autofocus,
@@ -129,10 +128,7 @@ class _AppTextInputDialogState extends State<_AppTextInputDialog> {
         : SizedBox(width: widget.width, child: field);
     return AlertDialog(
       title: Text(widget.title),
-      content: SingleChildScrollView(
-        padding: EdgeInsets.only(bottom: inset),
-        child: input,
-      ),
+      content: SingleChildScrollView(child: input),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),

@@ -113,6 +113,7 @@ class PlayerVideoBlock extends StatelessWidget {
     this.onNext,
     this.loading = false,
     this.loadError,
+    this.onRetry,
     this.maxPlayerHeight,
   });
 
@@ -126,6 +127,7 @@ class PlayerVideoBlock extends StatelessWidget {
   final VoidCallback? onNext;
   final bool loading;
   final String? loadError;
+  final VoidCallback? onRetry;
   final double? maxPlayerHeight;
 
   @override
@@ -158,6 +160,30 @@ class PlayerVideoBlock extends StatelessWidget {
               color: Colors.white,
             ),
           ),
+        if (loadError != null)
+          Positioned.fill(
+            child: ColoredBox(
+              color: Colors.black87,
+              child: Theme(
+                data: ThemeData.dark(),
+                child: Stack(
+                  children: [
+                    ErrorState(message: loadError!, onRetry: onRetry),
+                    if (onBack != null)
+                      Positioned(
+                        top: 4,
+                        left: 4,
+                        child: IconButton(
+                          onPressed: onBack,
+                          icon: const Icon(Icons.arrow_back_rounded),
+                          tooltip: '返回',
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
       ],
     );
     if (maxPlayerHeight != null) {
@@ -169,23 +195,6 @@ class PlayerVideoBlock extends StatelessWidget {
         ),
       );
     }
-    if (loadError == null) {
-      return block;
-    }
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        block,
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-          child: InlineState(
-            icon: Icons.error_outline_rounded,
-            title: '播放失败',
-            message: loadError!,
-          ),
-        ),
-      ],
-    );
+    return block;
   }
 }

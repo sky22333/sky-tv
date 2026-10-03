@@ -64,7 +64,6 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   bool _closing = false;
   bool _allowPop = false;
   bool _playerDisposed = false;
-  bool _playerReady = false;
   int? _resumePositionMs;
   Duration _lastKnownPosition = Duration.zero;
   Duration _lastKnownDuration = Duration.zero;
@@ -81,17 +80,17 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     _lineIndex = widget.lineIndex;
     _episodeIndex = widget.episodeIndex;
     _episodeTitleNotifier = ValueNotifier('');
-    // 推迟一帧再建 Player/Video，避免首帧与 VideoOutputManager.create 叠在一起丢帧。
+    // 先显示页面，取得有效播放地址后再创建原生播放器。
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _closing) {
         return;
       }
-      _ensurePlayer();
+      unawaited(_load());
     });
   }
 
   void _ensurePlayer() {
-    if (_playerReady || _playerDisposed || _closing) {
+    if (_player != null || _playerDisposed || _closing) {
       return;
     }
     final player = Player(
@@ -119,8 +118,6 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
     _durationSubscription = player.stream.duration.listen((duration) {
       _lastKnownDuration = duration;
     });
-    setState(() => _playerReady = true);
-    unawaited(_load());
   }
 
   @override
@@ -141,12 +138,13 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   }
 
   Future<void> _load() async {
+    setState(() => _loadError = null);
     try {
       final (mediaRepo, headers) = await (
         ref.read(mediaRepositoryProvider.future),
         ref.read(requestHeadersProvider.future),
       ).wait;
-      if (!mounted) {
+      if (!mounted || _closing) {
         return;
       }
       _mediaRepo = mediaRepo;
@@ -159,15 +157,16 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
           initial.sourceId == widget.sourceId &&
           initial.id == widget.mediaId;
       final detail = hasInitial ? initial : await _loadDetail(mediaRepo);
-      if (!mounted) {
+      if (!mounted || _closing) {
         return;
       }
       setState(() {
         _detail = detail;
-        _loadError = null;
+        _loadError = detail == null ? '当前源没有返回该影片详情，请重试或返回选择其他影片。' : null;
       });
       _syncEpisodeTitle();
-      if (detail != null) {
+      if (_currentEpisode != null) {
+        _ensurePlayer();
         await _openCurrent();
       }
     } catch (error) {
@@ -261,15 +260,6 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   @override
   Widget build(BuildContext context) {
     final detail = _detail;
-    final videoController = _videoController;
-    if (!_playerReady || videoController == null) {
-      return _wrapPopScope(
-        const Scaffold(
-          appBar: _PlayerAppBar(),
-          body: LoadingState(message: '正在准备播放器...'),
-        ),
-      );
-    }
     if (_loadError != null && detail == null) {
       return _wrapPopScope(
         Scaffold(
@@ -304,11 +294,12 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         wideAppBar: const _PlayerAppBar(),
         bodyBuilder: (context, constraints, wide) {
           final player = PlayerVideoBlock(
-            controller: videoController,
+            controller: _videoController!,
             title: detail.title,
             subtitle: _episodeTitleNotifier,
             loading: _opening,
             loadError: _loadError,
+            onRetry: () => unawaited(_openCurrent()),
             onBack: wide ? null : () => unawaited(_closePage()),
             selectorAction: PlayerSurfaceAction(
               icon: Icons.video_library_rounded,

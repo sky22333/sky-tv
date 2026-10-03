@@ -158,6 +158,9 @@ test/
   play_url_parser_test.dart
   iptv_parser_test.dart
 
+test_flutter/
+  refresh_layout_test.dart   缓存刷新、空详情恢复与轮播约束回归测试
+
 docs/
   docs.md                     本文件（AI 开发规范入口）
 
@@ -207,6 +210,7 @@ AGENTS.md                     指向 ./docs/docs.md
 ### 播放器
 
 - 核心使用 `media_kit` + `media_kit_video`；控制条主题与全屏逻辑在 `player_surface.dart`。
+- 点播取得有效播放地址后再创建原生播放器；空详情进入可重试错误状态，无播放地址显示空状态。播放错误提示在视频区域内覆盖显示，不额外增加固定播放器高度。
 - 竖屏点播页：`player_scaffold.dart` 固定顶部播放器 + 下方滚动内容；黑色状态栏（`playerPortraitSystemUi`）。下方用详情已有数据展示片名/元信息/可折叠简介，多线路时横向切换且只渲染当前线路分集网格（无额外请求）。
 - 宽屏断点 `playerWideBreakpoint = 1000`：AppBar + 左右分栏；侧栏内联全部线路分集。
 - 播放器内部手势优先使用官方 controls API（音量/亮度/seek/双击/长按加速）。
@@ -224,8 +228,9 @@ AGENTS.md                     指向 ./docs/docs.md
 ### 设置与缓存
 
 - 主题：系统 / 浅色 / 深色。
-- 「刷新首页数据」：`invalidate(homeDataProvider)` + `invalidate(homeFeedProvider)`。
-- 「清理缓存」：清理分类缓存、海报图片缓存，并重置订阅校验状态；**不**删除 IPTV 频道、订阅、收藏与观看记录（见 `AppDatabase.clearCache`）。
+- 「刷新首页数据」：共用 `refreshHomeData`，清除首页 Repository 缓存并等待重新拉取，完成后更新首页 Provider；失败提示错误。
+- 影视浏览手动刷新：清除当前源的分类持久缓存和预览内存缓存，等待预览 Provider 重新加载。
+- 「清理缓存」：清理分类缓存、海报图片内存与磁盘缓存，并重置订阅校验状态；**不**删除 IPTV 频道、订阅、收藏与观看记录（见 `AppDatabase.clearCache`）。
 
 ## UI 规范
 
@@ -238,7 +243,7 @@ AGENTS.md                     指向 ./docs/docs.md
 - 搜索、导入、加载、空状态和错误状态有清晰反馈（`state_views.dart`）。
 - 不使用无意义装饰动画或复杂视觉噪声。
 - 海报统一走 `PosterImage`（`cached_network_image` + `PosterFallback`）；列表卡片用 `PosterCard`（底部渐变叠标题与 meta）。
-- 首页竖版焦点用 `HomeFocusCarousel`（复用 `PosterCard`、viewport 约 0.38、有限环+近边缘 jump、无 3D、后台/拖拽暂停自动切换）；「为你推荐 / 继续观看 / 我的收藏」为 `PosterRow` / `ContinueWatchRow` 横向滚动（宽 118，2:3）；分类页用 `densePosterGridDelegate`。
+- 首页竖版焦点用 `HomeFocusCarousel`（复用 `PosterCard`、按父布局宽度计算，手机 viewport 约 0.38、海报宽度上限 220、比例 2:3、有限环+近边缘 jump、无 3D、后台/拖拽暂停自动切换）；「为你推荐 / 继续观看 / 我的收藏」为 `PosterRow` / `ContinueWatchRow` 横向滚动（宽 118，2:3）；分类页用同为 2:3 的 `densePosterGridDelegate`。
 - 直播频道过滤统一走 `filterIptvChannels`（`iptv_models.dart`）。
 - 解码尺寸由 `posterMemCacheFor(展示宽度)` 按 DPR 计算（默认 max 720，只约束宽度保比例）；勿在页面层重复写 `CachedNetworkImage`。
 
@@ -270,9 +275,10 @@ AGENTS.md                     指向 ./docs/docs.md
 常规代码改动后必须执行：
 
 ```bash
-dart format lib test
+dart format lib test test_flutter
 flutter analyze lib
 dart test
+flutter test test_flutter
 git diff --check
 ```
 

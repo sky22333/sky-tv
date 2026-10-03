@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -7,15 +8,22 @@ import '../../ui/widgets/app_dialogs.dart';
 import '../../ui/widgets/app_logo.dart';
 import '../../ui/widgets/state_views.dart';
 
-class SettingsPage extends ConsumerWidget {
+class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
+
+  @override
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends ConsumerState<SettingsPage> {
+  bool _refreshing = false;
 
   static final Uri _projectUri = Uri.parse(
     'https://github.com/sky22333/sky-tv',
   );
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
     final userAgent = ref.watch(customUserAgentProvider);
     return Scaffold(
@@ -66,13 +74,14 @@ class SettingsPage extends ConsumerWidget {
             leading: const Icon(Icons.refresh_rounded),
             title: const Text('刷新首页数据'),
             subtitle: const Text('刷新焦点、推荐、续看与收藏'),
-            onTap: () {
-              ref.invalidate(homeDataProvider);
-              ref.invalidate(homeFeedProvider);
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('首页数据已刷新')));
-            },
+            trailing: _refreshing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : null,
+            onTap: _refreshing ? null : _refreshHome,
           ),
           ListTile(
             leading: const Icon(Icons.cleaning_services_rounded),
@@ -90,6 +99,26 @@ class SettingsPage extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _refreshHome() async {
+    setState(() => _refreshing = true);
+    try {
+      await refreshHomeData(ref);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('首页数据已刷新')));
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('刷新失败：$error')));
+      }
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
   }
 
   Future<void> _openProject(BuildContext context) async {
@@ -125,11 +154,6 @@ class SettingsPage extends ConsumerWidget {
     final repo = await ref.read(settingsRepositoryProvider.future);
     await repo.setCustomUserAgent(result);
     ref.invalidate(customUserAgentProvider);
-    ref.invalidate(requestHeadersProvider);
-    ref.invalidate(macCmsApiProvider);
-    ref.invalidate(mediaRepositoryProvider);
-    ref.invalidate(sourceRepositoryProvider);
-    ref.invalidate(iptvRepositoryProvider);
     if (context.mounted) {
       ScaffoldMessenger.of(
         context,
@@ -150,18 +174,14 @@ class SettingsPage extends ConsumerWidget {
     try {
       final db = await ref.read(databaseProvider.future);
       db.clearCache();
-      ref.invalidate(homeDataProvider);
-      ref.invalidate(homeFeedProvider);
-      ref.invalidate(sourcesProvider);
+      if (!context.mounted) return;
       ref.invalidate(sourceRepositoryProvider);
       ref.invalidate(iptvRepositoryProvider);
-      ref.invalidate(iptvLibraryProvider);
       ref.invalidate(mediaRepositoryProvider);
+      await CachedNetworkImageProvider.defaultCacheManager.emptyCache();
       PaintingBinding.instance.imageCache.clear();
       PaintingBinding.instance.imageCache.clearLiveImages();
-      if (!context.mounted) {
-        return;
-      }
+      if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('缓存已清理')));

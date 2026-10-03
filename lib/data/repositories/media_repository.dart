@@ -53,6 +53,13 @@ class MediaRepository {
   final _categoryPreviewCache = <String, _CacheEntry<List<MediaItem>>>{};
   final _homeFeedCache = <String, _CacheEntry<List<MediaItem>>>{};
 
+  void clearHomeFeedCache() => _homeFeedCache.clear();
+
+  void clearBrowseCache(String sourceId) {
+    db.clearCategories(sourceId);
+    _categoryPreviewCache.removeWhere((key, _) => key.startsWith('$sourceId|'));
+  }
+
   List<WatchRecord> watchRecords() => db.loadWatchRecords();
 
   WatchRecord? watchRecord(String sourceId, String mediaId) =>
@@ -240,9 +247,12 @@ class MediaRepository {
       return HomeFeed.empty;
     }
     final exclude = _personalMediaKeys();
+    Object? lastError;
+    var receivedResponse = false;
     for (final source in candidates.take(3)) {
       try {
         final pool = await _loadHomePool(source, exclude);
+        receivedResponse = true;
         if (pool.isEmpty) {
           continue;
         }
@@ -252,9 +262,12 @@ class MediaRepository {
             .take(homeRecommendLimit)
             .toList();
         return HomeFeed(focus: focus, recommend: recommend);
-      } catch (_) {
-        continue;
+      } catch (error) {
+        lastError = error;
       }
+    }
+    if (!receivedResponse && lastError != null) {
+      throw lastError;
     }
     return HomeFeed.empty;
   }

@@ -6,7 +6,7 @@ import '../../core/models/media_models.dart';
 import 'poster_card.dart';
 
 /// 首页竖版焦点轮播：环形无限滚动，无 3D，复用 [PosterCard]。
-class HomeFocusCarousel extends StatefulWidget {
+class HomeFocusCarousel extends StatelessWidget {
   const HomeFocusCarousel({
     super.key,
     required this.items,
@@ -17,19 +17,47 @@ class HomeFocusCarousel extends StatefulWidget {
   final ValueChanged<MediaItem> onTap;
 
   @override
-  State<HomeFocusCarousel> createState() => _HomeFocusCarouselState();
+  Widget build(BuildContext context) {
+    if (items.isEmpty) return const SizedBox.shrink();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final slotWidth = (constraints.maxWidth * 0.38).clamp(10.0, 230.0);
+        return _HomeFocusViewport(
+          items: items,
+          onTap: onTap,
+          viewportFraction: slotWidth / constraints.maxWidth,
+          height: (slotWidth - 10) / (2 / 3),
+        );
+      },
+    );
+  }
 }
 
-class _HomeFocusCarouselState extends State<HomeFocusCarousel>
+class _HomeFocusViewport extends StatefulWidget {
+  const _HomeFocusViewport({
+    required this.items,
+    required this.onTap,
+    required this.viewportFraction,
+    required this.height,
+  });
+
+  final List<MediaItem> items;
+  final ValueChanged<MediaItem> onTap;
+  final double viewportFraction;
+  final double height;
+
+  @override
+  State<_HomeFocusViewport> createState() => _HomeFocusCarouselState();
+}
+
+class _HomeFocusCarouselState extends State<_HomeFocusViewport>
     with WidgetsBindingObserver {
   static const _interval = Duration(seconds: 5);
-  static const _fraction = 0.38;
-  static const _aspect = 2 / 3;
 
   /// 有限环 + 近边缘 jump 回中段，避免 n×1000 虚页。
   static const _loops = 40;
 
-  late final PageController _controller;
+  late PageController _controller;
   Timer? _timer;
   var _page = 0;
   var _dragging = false;
@@ -40,7 +68,7 @@ class _HomeFocusCarouselState extends State<HomeFocusCarousel>
   bool get _loop => _n >= 2;
   int get _count => _loop ? _n * _loops : _n;
   int _start() => _loop ? _n * (_loops ~/ 2) : 0;
-  int _real(int page) => _n == 0 ? 0 : page % _n;
+  int _real(int page) => page % _n;
 
   @override
   void initState() {
@@ -48,20 +76,27 @@ class _HomeFocusCarouselState extends State<HomeFocusCarousel>
     WidgetsBinding.instance.addObserver(this);
     _page = _start();
     _controller = PageController(
-      viewportFraction: _fraction,
+      viewportFraction: widget.viewportFraction,
       initialPage: _page,
+      keepPage: false,
     );
     _arm();
   }
 
   @override
-  void didUpdateWidget(covariant HomeFocusCarousel oldWidget) {
+  void didUpdateWidget(covariant _HomeFocusViewport oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.items.length != widget.items.length) {
-      _page = _start();
-      if (_controller.hasClients) {
-        _controller.jumpToPage(_page);
+    if (oldWidget.items.length != widget.items.length ||
+        oldWidget.viewportFraction != widget.viewportFraction) {
+      if (oldWidget.items.length != widget.items.length) {
+        _page = _start();
       }
+      _controller.dispose();
+      _controller = PageController(
+        viewportFraction: widget.viewportFraction,
+        initialPage: _page,
+        keepPage: false,
+      );
       _arm();
     }
   }
@@ -127,15 +162,11 @@ class _HomeFocusCarouselState extends State<HomeFocusCarousel>
   @override
   Widget build(BuildContext context) {
     final items = widget.items;
-    if (items.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    final height = MediaQuery.sizeOf(context).width * _fraction / _aspect;
 
     return Column(
       children: [
         SizedBox(
-          height: height,
+          height: widget.height,
           child: NotificationListener<ScrollNotification>(
             onNotification: (n) {
               if (n is ScrollStartNotification && n.dragDetails != null) {

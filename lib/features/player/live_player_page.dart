@@ -158,6 +158,8 @@ class _LivePlayerPageState extends ConsumerState<LivePlayerPage> {
             subtitle: _subtitleNotifier,
             loading: _loading,
             loadError: _loadError,
+            onRetry: () =>
+                unawaited(channel == null ? _load() : _playChannel(channel)),
             onBack: wide ? null : () => unawaited(_closePage()),
             selectorAction: library == null
                 ? null
@@ -249,6 +251,7 @@ class _LivePlayerPageState extends ConsumerState<LivePlayerPage> {
     }
     var group = _group;
     var keyword = _keyword;
+    _searchTimer?.cancel();
     await showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
@@ -290,7 +293,12 @@ class _LivePlayerPageState extends ConsumerState<LivePlayerPage> {
           ),
         ),
       ),
-    );
+    ).whenComplete(() {
+      _searchTimer?.cancel();
+      if (mounted) {
+        setState(() => _keyword = _searchController.text.trim());
+      }
+    });
   }
 }
 

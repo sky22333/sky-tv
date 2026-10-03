@@ -288,13 +288,17 @@ class AppDatabase {
     }
   }
 
+  void clearCategories(String sourceId) {
+    _db.execute('DELETE FROM source_categories WHERE source_id = ?', [
+      sourceId,
+    ]);
+  }
+
   void saveCategories(String sourceId, List<SourceCategory> categories) {
     final now = DateTime.now().millisecondsSinceEpoch;
     _db.execute('BEGIN');
     try {
-      _db.execute('DELETE FROM source_categories WHERE source_id = ?', [
-        sourceId,
-      ]);
+      clearCategories(sourceId);
       final statement = _db.prepare('''
         INSERT INTO source_categories (source_id, category_id, source_name, name, updated_at)
         VALUES (?, ?, ?, ?, ?)

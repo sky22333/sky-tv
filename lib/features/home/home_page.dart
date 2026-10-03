@@ -34,10 +34,18 @@ class HomePage extends ConsumerWidget {
         skipLoadingOnReload: true,
         data: (home) => RefreshIndicator(
           onRefresh: () async {
-            ref.invalidate(homeDataProvider);
-            ref.invalidate(homeFeedProvider);
+            try {
+              await refreshHomeData(ref);
+            } catch (error) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('刷新失败：$error')));
+              }
+            }
           },
           child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             children: [
               const _HomeDiscover(),
               if (home.recentSearches.isNotEmpty)

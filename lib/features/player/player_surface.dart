@@ -66,7 +66,7 @@ class PlayerSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final player = controller.player;
-    final desktop = _desktopControls(context);
+    final desktop = _desktopControls();
     final mobileTheme = _mobileControlsTheme(
       context: context,
       title: title,
@@ -118,7 +118,7 @@ class PlayerSurface extends StatelessWidget {
     return ClipRRect(borderRadius: BorderRadius.circular(8), child: child);
   }
 
-  bool _desktopControls(BuildContext context) {
+  bool _desktopControls() {
     if (kIsWeb) {
       return false;
     }
@@ -142,7 +142,7 @@ class PlayerSurface extends StatelessWidget {
     required PlayerSurfaceAction? selectorAction,
     required VoidCallback? onNext,
   }) {
-    final shortcuts = _desktopKeyboardShortcuts(context, player);
+    final shortcuts = _desktopKeyboardShortcuts(player);
     final topBar = <Widget>[
       Expanded(
         child: _PlayerControlTitle(title: title, subtitle: subtitle),
@@ -162,7 +162,10 @@ class PlayerSurface extends StatelessWidget {
         ),
       if (selectorAction != null)
         MaterialDesktopCustomButton(
-          icon: Icon(selectorAction.icon),
+          icon: Icon(
+            selectorAction.icon,
+            semanticLabel: selectorAction.tooltip,
+          ),
           onPressed: () => selectorAction.onPressed(context),
         ),
       const MaterialDesktopFullscreenButton(),
@@ -201,7 +204,6 @@ class PlayerSurface extends StatelessWidget {
   }
 
   Map<ShortcutActivator, VoidCallback> _desktopKeyboardShortcuts(
-    BuildContext context,
     Player player,
   ) {
     return {
@@ -375,7 +377,7 @@ class _PlayerSelectorButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialCustomButton(
-      icon: Icon(action.icon),
+      icon: Icon(action.icon, semanticLabel: action.tooltip),
       onPressed: () => action.onPressed(context),
     );
   }
